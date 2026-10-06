@@ -26,6 +26,7 @@ import android.widget.Toast;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -49,6 +50,8 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setTextZoom(100);
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        Updater.resetIfApkChanged(this);
         web.addJavascriptInterface(new Bridge(), "AndroidBridge");
 
         web.setWebViewClient(new WebViewClient() {
@@ -58,7 +61,9 @@ public class MainActivity extends Activity {
                 if (!HOST.equals(uri.getHost())) return blocked();
                 String path = uri.getPath() == null || uri.getPath().equals("/") ? "index.html" : uri.getPath().substring(1);
                 try {
-                    InputStream in = getAssets().open(path);
+                    // קובץ שעודכן מהאתר גובר על הקובץ הארוז ב-APK
+                    File live = Updater.liveFile(MainActivity.this, path);
+                    InputStream in = live.isFile() ? new FileInputStream(live) : getAssets().open(path);
                     return new WebResourceResponse(mime(path), isText(path) ? "utf-8" : null, in);
                 } catch (Exception e) {
                     return blocked();
@@ -93,6 +98,9 @@ public class MainActivity extends Activity {
 
         if (state != null) web.restoreState(state);
         else web.loadUrl("https://" + HOST + "/index.html");
+
+        // בדיקת עדכון ברקע. גרסה חדשה נטענת בפתיחה הבאה של האפליקציה
+        Updater.checkInBackground(this, version -> toast("האפליקציה עודכנה. הגרסה החדשה תופעל בפתיחה הבאה."));
     }
 
     private static WebResourceResponse blocked() {

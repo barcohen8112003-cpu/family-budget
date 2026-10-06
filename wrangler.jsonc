@@ -2,6 +2,10 @@
   // Cloudflare Workers: מגיש את תיקיית www כאתר סטטי
   "name": "family-budget",
   "compatibility_date": "2026-10-01",
+  // לפני כל פריסה נוצרת רשימת הקבצים שה-APK משתמש בה לעדכון
+  "build": {
+    "command": "node make-manifest.js"
+  },
   "assets": {
     "directory": "./www"
   }
