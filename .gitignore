@@ -1,0 +1,8 @@
+# קבצים אישיים ותוצרי בנייה לא עולים לריפו
+הקבצים שלי/
+*.apk
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+.claude/

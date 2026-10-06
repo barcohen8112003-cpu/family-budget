@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- מאנדרואיד 10: ערכת הצבעים עוקבת אחרי מצב כהה/בהיר של המכשיר -->
+    <style name="AppTheme" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@color/brand</item>
+    </style>
+</resources>

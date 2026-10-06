@@ -1,0 +1,31 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'il.family.budget'
+    compileSdk 35
+    buildToolsVersion '36.0.0'
+
+    defaultConfig {
+        applicationId 'il.family.budget'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // קובצי האפליקציה (HTML/JS) נלקחים ישירות מתיקיית www
+    sourceSets {
+        main.assets.srcDirs = ['../../www']
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
