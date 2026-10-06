@@ -1,0 +1,8 @@
+{
+  // Cloudflare Workers: מגיש את תיקיית www כאתר סטטי
+  "name": "family-budget",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./www"
+  }
+}
