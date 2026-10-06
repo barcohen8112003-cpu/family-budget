@@ -8,7 +8,9 @@ const Notif = {
   PKG_HINTS: [[/cal4u|onoapps\.cal/i, 'cal'], [/leumicard|max\.|\.max/i, 'max'], [/isracard/i, 'isracard'], [/amex|americanexpress/i, 'amex'],
     [/leumi/i, 'leumi'], [/poalim/i, 'poalim'], [/discount/i, 'discount'], [/mizrahi/i, 'mizrahi'], [/fibi/i, 'fibi']],
 
-  available: () => Platform.android() && typeof window.AndroidBridge.pullNotifications === 'function',
+  // במהדורה הרגילה (lite) של ה-APK אין קריאת התראות
+  available: () => Platform.android() && typeof window.AndroidBridge.pullNotifications === 'function'
+    && (typeof window.AndroidBridge.hasNotif !== 'function' || window.AndroidBridge.hasNotif()),
   enabled: () => Notif.available() && window.AndroidBridge.notifEnabled(),
 
   amount(text) {
@@ -113,7 +115,7 @@ const Notif = {
     const on = Notif.enabled();
     const log = S.notifLog.slice(0, 15);
     return `<div class="card section stack"><div class="row between"><h3>מעקב בזמן אמת מהתראות</h3>
-        ${Notif.available() ? `<span class="chip ${on ? 'ok' : 'warn'}">${UI.icon(on ? 'circle-check' : 'triangle-alert')}${on ? 'פעיל' : 'כבוי'}</span>` : '<span class="chip">זמין באפליקציית האנדרואיד</span>'}</div>
+        ${Notif.available() ? `<span class="chip ${on ? 'ok' : 'warn'}">${UI.icon(on ? 'circle-check' : 'triangle-alert')}${on ? 'פעיל' : 'כבוי'}</span>` : `<span class="chip">${Platform.android() ? 'זמין במהדורה המלאה' : 'זמין באפליקציית האנדרואיד'}</span>`}</div>
       <p class="muted label">האפליקציה קוראת התראות ו-SMS על עסקאות מחברת האשראי ומהבנק, ומוסיפה אותן מיד כעסקאות. כשתייבאו את התדפיס, שורות התדפיס יחליפו אותן ולא ייווצרו כפילויות. ההתראות נשמרות במכשיר בלבד.</p>
       ${Notif.available() ? `<div class="row"><button class="btn ${on ? '' : 'primary'}" data-notif-open>${UI.icon('bell')}${on ? 'הגדרות גישה להתראות' : 'הפעלת גישה להתראות'}</button>
         <button class="btn ghost" data-notif-app>פרטי האפליקציה</button></div>

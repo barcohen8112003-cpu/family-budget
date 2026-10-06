@@ -196,8 +196,15 @@ public class MainActivity extends Activity {
             }
         }
 
+        /** האם המהדורה הזאת כוללת קריאת התראות. */
+        @JavascriptInterface
+        public boolean hasNotif() {
+            return BuildConfig.NOTIF;
+        }
+
         @JavascriptInterface
         public boolean notifEnabled() {
+            if (!BuildConfig.NOTIF) return false;
             String list = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
             return list != null && list.contains(getPackageName() + "/");
         }
