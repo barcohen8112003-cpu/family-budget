@@ -81,7 +81,6 @@ Views.settings = (main) => {
         <p class="caption">${S.tx.length} עסקאות · ${S.sources.length} מקורות · ${Object.keys(S.mappings).length} מיפויי עמודות שמורים</p>
       </div>
     </div>
-    ${Notif.card()}
     <div class="card section"><div class="row between" style="margin-bottom:16px"><h3>קטגוריות</h3><button class="btn sm" data-cat-add>${UI.icon('plus')}קטגוריה חדשה</button></div>
       <div class="list">${Cat.tops().map((c) => `<div class="item" style="flex-wrap:wrap"><div class="grow">${UI.cat(c.id)}
           <div class="row" style="margin-top:6px;gap:6px">${Cat.children(c.id).map((s) => `<button class="chip" style="border:0;cursor:pointer" data-cat-edit="${s.id}">${U.esc(s.name)}</button>`).join('')}
@@ -92,7 +91,6 @@ Views.settings = (main) => {
       ${rules.length ? `<div class="list">${rules.map(([k, v]) => `<div class="item"><div class="grow ellipsis">${U.esc(k)}</div>${UI.cat(v)}<button class="btn sm ghost icon" data-del-rule="${U.esc(k)}" aria-label="מחיקת הכלל">${UI.icon('trash-2')}</button></div>`).join('')}</div>`
     : '<p class="muted">כשתשנו קטגוריה של עסקה ותבחרו להחיל על כל העסקאות מאותו בית עסק, הכלל יופיע כאן.</p>'}</div>`;
 
-  Notif.bind(main);
   $$('[data-theme]', main).forEach((b) => (b.onclick = async () => { S.settings.theme = b.dataset.theme; await Store.save('settings'); App.applyTheme(); App.render(); }));
   $('#member-form', main).onsubmit = async (e) => {
     e.preventDefault(); const v = $('#member', main).value.trim();

@@ -11,7 +11,6 @@ import android.os.Environment;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
 import android.provider.MediaStore;
-import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
@@ -150,13 +149,6 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        // משיכת התראות שנקלטו בזמן שהאפליקציה הייתה סגורה
-        if (web != null) web.evaluateJavascript("window.Notif && Notif.pull && Notif.pull()", null);
-    }
-
-    @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         web.saveState(out);
@@ -194,34 +186,6 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 toast("שמירת הקובץ נכשלה: " + e.getMessage());
             }
-        }
-
-        /** האם המהדורה הזאת כוללת קריאת התראות. */
-        @JavascriptInterface
-        public boolean hasNotif() {
-            return BuildConfig.NOTIF;
-        }
-
-        @JavascriptInterface
-        public boolean notifEnabled() {
-            if (!BuildConfig.NOTIF) return false;
-            String list = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
-            return list != null && list.contains(getPackageName() + "/");
-        }
-
-        @JavascriptInterface
-        public void openNotifSettings() {
-            runOnUiThread(() -> startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
-        }
-
-        @JavascriptInterface
-        public void openAppInfo() {
-            runOnUiThread(() -> startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))));
-        }
-
-        @JavascriptInterface
-        public String pullNotifications() {
-            return NotifService.pull(MainActivity.this);
         }
 
         @JavascriptInterface

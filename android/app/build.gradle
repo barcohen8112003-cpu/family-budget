@@ -15,24 +15,6 @@ android {
         versionName '1.1'
     }
 
-    // שתי מהדורות של אותה אפליקציה (אותו מזהה, כך שאחת מתקינה מעל השנייה והנתונים נשמרים):
-    // lite  - בלי קריאת התראות; מתקינה מכל מקור בלי חסימה של Play Protect
-    // full  - עם קריאת התראות על עסקאות
-    flavorDimensions 'edition'
-    productFlavors {
-        lite {
-            dimension 'edition'
-            buildConfigField 'boolean', 'NOTIF', 'false'
-        }
-        full {
-            dimension 'edition'
-            buildConfigField 'boolean', 'NOTIF', 'true'
-        }
-    }
-    buildFeatures {
-        buildConfig true
-    }
-
     // קובצי האפליקציה (HTML/JS) נלקחים ישירות מתיקיית www
     sourceSets {
         main.assets.srcDirs = ['../../www']

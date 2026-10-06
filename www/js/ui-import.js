@@ -70,9 +70,6 @@ const Imp = {
       installment: r.installment, details: r.details, categoryId: r.categoryId, ccCharge: r.cc, linked: false,
       member: S.settings.members[0] || '', tags: [], manual: false,
     }));
-    // עסקאות שנקלטו קודם מהתראות מוחלפות בשורות התדפיס
-    const stale = Notif.supersededBy(list, sid);
-    if (stale.length) await Store.delTx(stale);
     await Store.putTx(list);
     Imp.done.push({ name: c.file.name, count: list.length });
     UI.toast(list.length ? `יובאו ${list.length} עסקאות מהקובץ ${c.file.name}` : `לא יובאו עסקאות חדשות מהקובץ ${c.file.name}`);

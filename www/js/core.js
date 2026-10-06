@@ -154,10 +154,10 @@ const BANKS = [
 // ---------- מצב ----------
 const S = {
   tx: [],
-  categories: [], rules: {}, mappings: {}, budgets: {}, goals: [], filters: [], sources: [], notifLog: [],
+  categories: [], rules: {}, mappings: {}, budgets: {}, goals: [], filters: [], sources: [],
   settings: { theme: 'auto', pinHash: null, members: ['משותף'] },
 };
-const KV_KEYS = ['categories', 'rules', 'mappings', 'budgets', 'goals', 'filters', 'sources', 'settings', 'notifLog'];
+const KV_KEYS = ['categories', 'rules', 'mappings', 'budgets', 'goals', 'filters', 'sources', 'settings'];
 
 const Store = {
   async load() {
@@ -189,7 +189,7 @@ const Store = {
   },
   async wipe() {
     await DB.clear('tx'); await DB.clear('kv');
-    S.tx = []; S.rules = {}; S.mappings = {}; S.budgets = {}; S.goals = []; S.filters = []; S.sources = []; S.notifLog = [];
+    S.tx = []; S.rules = {}; S.mappings = {}; S.budgets = {}; S.goals = []; S.filters = []; S.sources = [];
     S.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
     S.settings = { theme: S.settings.theme, pinHash: null, members: ['משותף'] };
     await Store.save('categories'); await Store.save('settings');

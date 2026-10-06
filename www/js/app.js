@@ -128,7 +128,6 @@ const App = {
     $('#lock').hidden = true; $('#app').hidden = false;
     Period.ym = Calc.latestMonth();
     App.go(S.tx.length ? 'dashboard' : 'import');
-    Notif.pull();
   },
   // כפתור החזרה באנדרואיד: סגירת חלון קופץ, ביטול ייבוא, חזרה ללוח הבקרה, ואז יציאה
   onBack() {

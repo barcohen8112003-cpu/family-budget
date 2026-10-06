@@ -48,7 +48,6 @@ const Tx = {
       t.installment ? `<span class="chip">תשלום ${t.installment.n} מתוך ${t.installment.total} · נותרו <span class="num">${U.money((t.installment.total - t.installment.n) * -t.amount)}</span></span>` : '',
       t.splits && t.splits.length ? `<span class="chip">${UI.icon('split')}פוצל ל-${t.splits.length}</span>` : '',
       t.manual ? '<span class="chip">ידני</span>' : '',
-      t.fromNotif ? `<span class="chip accent">${UI.icon('bell')}מהתראה</span>` : '',
       ...(t.tags || []).map((g) => `<span class="chip brand">${U.esc(g)}</span>`),
       t.member && S.settings.members.length > 1 && t.member !== S.settings.members[0] ? `<span class="chip">${U.esc(t.member)}</span>` : '',
     ].join(' ');
