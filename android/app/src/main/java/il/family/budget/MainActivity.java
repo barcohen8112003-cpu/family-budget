@@ -33,13 +33,32 @@ import java.io.OutputStream;
 /** מעטפת WebView: טוענת את האפליקציה מתוך ה-APK, בלי גישה לרשת. */
 public class MainActivity extends Activity {
     private static final String HOST = "app.local";
+    private static final String API_HOST = "family-budget.naorkurtz1.workers.dev";
     private static final int PICK_FILES = 1;
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
+    private String pendingLink;
+
+    /** קישור שיתוף שנפתח באפליקציה (https://.../join#... או familybudget://join/...). */
+    private static String linkFrom(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return null;
+        return intent.getData().toString();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        String link = linkFrom(intent);
+        if (link != null && web != null) {
+            pendingLink = link;
+            web.evaluateJavascript("window.Share && Share.incoming()", null);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        pendingLink = linkFrom(getIntent());
         web = new WebView(this);
         setContentView(web);
         WebSettings s = web.getSettings();
@@ -57,6 +76,8 @@ public class MainActivity extends Activity {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
+                // הכתובת החיצונית היחידה שמותרת: שרת השיתוף והשערים של האפליקציה (/api/)
+                if (API_HOST.equals(uri.getHost()) && "https".equals(uri.getScheme()) && uri.getPath() != null && uri.getPath().startsWith("/api/")) return null;
                 if (!HOST.equals(uri.getHost())) return blocked();
                 String path = uri.getPath() == null || uri.getPath().equals("/") ? "index.html" : uri.getPath().substring(1);
                 try {
@@ -158,8 +179,31 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> Toast.makeText(this, text, Toast.LENGTH_LONG).show());
     }
 
-    /** גשר ל-JavaScript: שמירת קבצים בתיקיית ההורדות והדפסה. */
+    /** גשר ל-JavaScript: שמירת קבצים, הדפסה, שליחת קישור וקבלת קישור שיתוף. */
     private class Bridge {
+        /** גרסת הגשר. 2 = יש גישה לשרת השיתוף והשערים, שליחה וקבלה של קישורים. */
+        @JavascriptInterface
+        public int apiVersion() {
+            return 2;
+        }
+
+        @JavascriptInterface
+        public String takeLink() {
+            String link = pendingLink;
+            pendingLink = null;
+            return link;
+        }
+
+        @JavascriptInterface
+        public void shareText(String text) {
+            runOnUiThread(() -> {
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType("text/plain");
+                send.putExtra(Intent.EXTRA_TEXT, text);
+                startActivity(Intent.createChooser(send, "שליחת קישור לתקציב"));
+            });
+        }
+
         @JavascriptInterface
         public void saveFile(String name, String mimeType, String base64) {
             try {

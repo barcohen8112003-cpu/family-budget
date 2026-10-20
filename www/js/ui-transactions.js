@@ -161,6 +161,7 @@ Views.transactions = (main, params) => {
 // ---------- עריכת עסקה / הוספה ידנית ----------
 const TxEdit = {
   open(id, preset = {}) {
+    if (App.readOnly) return;
     const orig = id ? S.tx.find((t) => t.id === id) : null;
     const t = orig ? JSON.parse(JSON.stringify(orig)) : { id: U.uid(), date: U.today(), description: '', amount: 0, categoryId: 'other', sourceId: 'src-cash', member: S.settings.members[0] || '', tags: [], manual: true, splits: [], ...preset };
     let splits = (t.splits || []).map((s) => ({ ...s, amount: Math.abs(s.amount) }));

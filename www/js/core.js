@@ -180,20 +180,27 @@ const Store = {
     S.settings = { theme: 'auto', pinHash: null, members: ['משותף'], ...S.settings };
     Calc.relink();
   },
-  save: (key) => DB.put('kv', { key, value: S[key] }),
+  // תקציב שהתקבל לצפייה אינו ניתן לשינוי; רק הסנכרון מהבעלים כותב אליו
+  guard() { if (typeof App !== 'undefined' && App.readOnly && !(typeof Share !== 'undefined' && Share.syncing)) throw new Error('זה תקציב לצפייה בלבד.'); },
+  touched() { if (typeof Share !== 'undefined') Share.changed(); },
+  async save(key) { Store.guard(); await DB.put('kv', { key, value: S[key] }); if (key !== 'settings') Store.touched(); },
   async putTx(list) {
+    Store.guard();
     list = Array.isArray(list) ? list : [list];
     const ids = new Set(list.map((t) => t.id));
     S.tx = S.tx.filter((t) => !ids.has(t.id)).concat(list);
     await DB.put('tx', list);
+    Store.touched();
     const changed = Calc.relink();
     if (changed.length) await DB.put('tx', changed);
   },
   async delTx(ids) {
+    Store.guard();
     ids = Array.isArray(ids) ? ids : [ids];
     const set = new Set(ids);
     S.tx = S.tx.filter((t) => !set.has(t.id));
     await DB.del('tx', ids);
+    Store.touched();
     const changed = Calc.relink();
     if (changed.length) await DB.put('tx', changed);
   },

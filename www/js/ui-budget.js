@@ -21,6 +21,7 @@ const Budget = {
   },
   // הוספה או עריכה של שורת תקציב. בהוספה אפשר גם ליצור קטגוריה חדשה.
   dialog(catId) {
+    if (App.readOnly) return;
     const free = Cat.tops().filter((c) => c.type === 'expense' && !(S.budgets[c.id] > 0));
     const m = UI.modal({
       title: catId ? `תקציב חודשי: ${Cat.get(catId).name}` : 'הוספת תקציב חודשי',
@@ -54,6 +55,7 @@ const Budget = {
     sync();
   },
   goalDialog(goal) {
+    if (App.readOnly) return;
     const g = goal || { id: U.uid(), name: '', target: '', saved: 0, deadline: '' };
     UI.modal({
       title: goal ? 'עריכת יעד חיסכון' : 'יעד חיסכון חדש',

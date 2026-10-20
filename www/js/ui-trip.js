@@ -20,6 +20,7 @@ const Trip = {
 
   // הוספה או עריכה של הוצאה. preset.categoryId בוחר מראש מאיזו קטגוריה להוריד
   add(tx = null, preset = {}) {
+    if (App.readOnly) return;
     const t = tx || { id: U.uid(), date: U.today(), description: '', amount: 0, categoryId: preset.categoryId || 'food', sourceId: 'src-manual',
       member: S.settings.members[0] || '', tags: [], manual: true, splits: [] };
     const spent = Trip.spentBy();
@@ -91,6 +92,7 @@ const Trip = {
 
   // קביעת תקציב לקטגוריה, שינוי שם, או קטגוריה חדשה (catId = null)
   editCat(catId) {
+    if (App.readOnly) return;
     const c = catId ? Cat.get(catId) : null;
     UI.modal({
       title: c ? c.name : 'קטגוריה חדשה',
@@ -133,6 +135,7 @@ Views.trip = (main) => {
   main.innerHTML = `
     <div class="page-head"><h1>${U.esc(Registry.current().name)}</h1>
       <button class="btn" data-fx>${UI.icon('arrow-left-right')}המרת מטבע</button>
+      <button class="btn ro-hide" data-share>${UI.icon('share-2')}${Share.isOwner() ? 'משותף' : 'שיתוף'}</button>
       <button class="btn primary" data-add style="min-height:52px;font-size:16px">${UI.icon('plus')}הוצאה חדשה</button></div>
     <div class="card">
       ${totalBudget ? `<div class="row between"><span class="label">התקציב לכל הטיול</span><span class="label ${lvl}">${UI.icon(Budget.icon[lvl])} ${Budget.word[lvl]} · <span class="num">${pct}%</span></span></div>
@@ -161,6 +164,7 @@ Views.trip = (main) => {
 
   $('[data-add]', main).onclick = () => Trip.add();
   $('[data-fx]', main).onclick = () => FX.dialog();
+  $('[data-share]', main).onclick = () => Share.dialog();
   // סכום ההוצאות גם בשקלים, כשמטבע הטיול אינו שקל
   if (U.cur !== '₪' && totalSpent) {
     const show = () => { const v = FX.convert(totalSpent, U.cur, '₪'); const el = $('#trip-ils', main); if (el && !isNaN(v)) el.textContent = ` (≈ ${U.nf.format(v)} ₪)`; };

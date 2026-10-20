@@ -71,6 +71,9 @@ Views.settings = (main) => {
         <div class="row">${S.settings.members.map((m, i) => `<span class="chip" style="padding:6px 8px">${U.esc(m)}${i ? ` <button class="btn sm ghost icon" style="min-height:24px;width:24px" data-del-member="${i}" aria-label="הסרת ${U.esc(m)}">${UI.icon('x')}</button>` : ''}</span>`).join('')}</div>
         <form class="row" id="member-form"><input id="member" placeholder="שם, למשל: אבא" aria-label="שם בן משפחה חדש" style="flex:1;min-width:140px"><button class="btn">הוספה</button></form>
       </div>
+      <div class="card stack"><h3>שיתוף לצפייה</h3>
+        <p class="muted label">${Share.isOwner() ? 'התקציב משותף. מי שקיבל את הקישור רואה כל שינוי, ולא יכול לערוך.' : 'שלחו קישור, ומי שיקבל אותו יראה את התקציב באפליקציה שלו, לצפייה בלבד.'}</p>
+        <div class="row"><button class="btn" data-share>${UI.icon('share-2')}${Share.isOwner() ? 'ניהול השיתוף' : 'שיתוף התקציב'}</button></div></div>
       <div class="card stack"><h3>פרטיות וגיבוי</h3>
         <p class="caption">${UI.icon('shield')} כל הנתונים נשמרים במכשיר הזה בלבד (IndexedDB). הקבצים מעובדים באפליקציה ולא נשלחים לשום שרת.</p>
         <div class="row"><button class="btn" data-pin>${UI.icon('lock')}${S.settings.pinHash ? 'החלפת קוד PIN' : 'הגדרת קוד PIN'}</button>
@@ -98,6 +101,7 @@ Views.settings = (main) => {
   };
   $$('[data-del-member]', main).forEach((b) => (b.onclick = async () => { S.settings.members.splice(+b.dataset.delMember, 1); await Store.save('settings'); App.render(); }));
   $('[data-pin]', main).onclick = Settings.pinDialog;
+  $('[data-share]', main).onclick = () => Share.dialog();
   const off = $('[data-pin-off]', main); if (off) off.onclick = async () => { S.settings.pinHash = null; await Store.save('settings'); UI.toast('קוד ה-PIN בוטל'); App.render(); };
   $('[data-backup]', main).onclick = () => Export.backup().catch(UI.error);
   $('#restore', main).onchange = async (e) => {

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>הזמנה לתקציב משותף</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!-- עמוד שנפתח כשלוחצים על קישור שיתוף בדפדפן. המפתח נמצא אחרי ה-# ולכן לא נשלח לשרת. -->
+  <div class="lock">
+    <div class="card stack" style="width:min(420px,100%);text-align:start">
+      <h2>הוזמנתם לצפות בתקציב</h2>
+      <p class="muted" id="msg">מישהו שיתף אתכם בתקציב מאפליקציית "תקציב משפחתי", לצפייה בלבד.</p>
+      <a class="btn primary" id="open-app" style="min-height:52px">פתיחה באפליקציה</a>
+      <a class="btn" id="open-web">צפייה כאן בדפדפן</a>
+      <p class="caption">אם האפליקציה מותקנת והכפתור הראשון לא עובד: העתיקו את הקישור, פתחו את האפליקציה, ובמסך "איזה תקציב לנהל?" הדביקו אותו תחת "קיבלתם קישור לתקציב משותף?".</p>
+    </div>
+  </div>
+  <script>
+    const code = location.hash.slice(1);
+    if (!/^[A-Za-z0-9_-]{16,64}\.[A-Za-z0-9_-]{40,50}$/.test(code)) {
+      document.getElementById('msg').textContent = 'הקישור לא שלם. בקשו מהשולח לשלוח אותו שוב.';
+      document.getElementById('open-app').hidden = true; document.getElementById('open-web').hidden = true;
+    } else {
+      document.getElementById('open-app').href = `familybudget://join/${code}`;
+      document.getElementById('open-web').href = `/#join=${code}`;
+    }
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark';
+  </script>
+</body>
+</html>
