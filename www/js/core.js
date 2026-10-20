@@ -222,7 +222,7 @@ const Store = {
 // ---------- רשימת התקציבים ----------
 // מאגר קטן ונפרד שמחזיק את רשימת התקציבים, את התקציב האחרון שנפתח ואת ערכת הצבעים
 const Registry = {
-  db: null, list: [], last: null, theme: 'auto',
+  db: null, list: [], last: null, theme: 'auto', fx: null,
   open() {
     return new Promise((res, rej) => {
       const req = indexedDB.open('family-budget-registry', 1);
@@ -244,7 +244,7 @@ const Registry = {
   save() {
     return new Promise((res, rej) => {
       const t = Registry.db.transaction('kv', 'readwrite'); const s = t.objectStore('kv');
-      ['list', 'last', 'theme'].forEach((key) => s.put({ key, value: Registry[key] }));
+      ['list', 'last', 'theme', 'fx'].forEach((key) => s.put({ key, value: Registry[key] }));
       t.oncomplete = () => res(); t.onerror = () => rej(t.error);
     });
   },

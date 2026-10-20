@@ -52,9 +52,38 @@ export class ShareStore extends DurableObject {
   }
 }
 
+// שערי מטבע: השער היציג של בנק ישראל (מתעדכן פעם ביום עסקים), עם גיבוי ממקור חינמי נוסף.
+// התשובה נשמרת במטמון חצי שעה. השערים הם בשקלים ליחידת מטבע.
+async function rates(ctx) {
+  const cache = caches.default; const key = new Request('https://cache.internal/rates-v1');
+  const hit = await cache.match(key); if (hit) return hit;
+  let body = null;
+  try {
+    const r = await fetch('https://boi.org.il/PublicApi/GetExchangeRates', { headers: { Accept: 'application/json' } });
+    const d = await r.json(); const out = {};
+    d.exchangeRates.forEach((x) => { if (['USD', 'EUR', 'GBP'].includes(x.key)) out[x.key] = x.currentExchangeRate / (x.unit || 1); });
+    const upd = d.exchangeRates.find((x) => x.key === 'USD').lastUpdate;
+    if (out.USD) body = { rates: out, updated: upd, source: 'בנק ישראל (שער יציג)' };
+  } catch (e) { /* נעבור לגיבוי */ }
+  if (!body) {
+    try {
+      const d = await (await fetch('https://open.er-api.com/v6/latest/ILS')).json();
+      const out = {}; ['USD', 'EUR', 'GBP'].forEach((k) => { if (d.rates[k]) out[k] = 1 / d.rates[k]; });
+      body = { rates: out, updated: new Date(d.time_last_update_unix * 1000).toISOString(), source: 'open.er-api.com' };
+    } catch (e) { return json({ error: 'rates-unavailable' }, 502); }
+  }
+  const res = new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=1800', ...CORS } });
+  ctx.waitUntil(cache.put(key, res.clone()));
+  return res;
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === '/api/rate') {
+      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+      return rates(ctx);
+    }
     if (url.pathname === '/.well-known/assetlinks.json') {
       return json([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: APP_ID, sha256_cert_fingerprints: [APP_CERT] } }]);
     }

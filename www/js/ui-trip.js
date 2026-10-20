@@ -29,10 +29,15 @@ const Trip = {
       const r = S.budgets[id] - (spent[id] || 0);
       return r >= 0 ? ` · נשארו ${U.money(r)}` : ` · חריגה של ${U.money(-r)}`;
     };
+    // אפשר לשלם במטבע אחר (למשל שקלים בטיול בדולרים); הסכום מומר למטבע הטיול לפי השער היציג
+    const other = U.cur === '₪' ? '$' : '₪';
     const m = UI.modal({
       title: tx ? 'עריכת הוצאה' : 'הוצאה חדשה',
       body: `<div class="stack">
-        <label class="field"><span>סכום (${U.cur})</span><input type="number" inputmode="decimal" step="any" min="0" id="q-amount" value="${tx ? Math.abs(t.amount) : ''}" style="font-size:24px;min-height:56px"></label>
+        <div class="field"><span>סכום</span>
+          <div class="row" style="flex-wrap:nowrap"><input type="number" inputmode="decimal" step="any" min="0" id="q-amount" value="${tx ? Math.abs(t.amount) : ''}" style="font-size:24px;min-height:56px;flex:1;min-width:0" aria-label="סכום">
+            <div class="seg" role="group" aria-label="מטבע התשלום">${[U.cur, other].map((s) => `<button type="button" data-qcur="${s}" aria-pressed="${s === U.cur}">${s}</button>`).join('')}</div></div>
+          <span class="caption" id="q-conv"></span></div>
         <div><div class="label" style="margin-bottom:8px">מאיזה תקציב להוריד?</div>
           <div class="cat-pick">${cats.map((c) => `<button type="button" class="btn" data-pick="${c.id}" aria-pressed="${t.categoryId === c.id}">${UI.cat(c.id, false)}<span class="grow" style="text-align:start">${U.esc(c.name)}<span class="caption" style="display:block">${left(c.id).replace(' · ', '')}</span></span></button>`).join('')}</div></div>
         <label class="field"><span>על מה? (לא חובה)</span><input id="q-desc" value="${U.esc(t.description)}" placeholder="למשל: ארוחת ערב בניו יורק"></label>
@@ -40,12 +45,18 @@ const Trip = {
       </div>`,
       actions: [
         { label: 'שמירה', cls: 'primary', onClick: async (close, el) => {
-          const amount = +$('#q-amount', el).value; const date = $('#q-date', el).value;
-          if (!(amount > 0)) return UI.toast('הקלידו סכום גדול מאפס.', 'error');
+          const typed = +$('#q-amount', el).value; const date = $('#q-date', el).value;
+          if (!(typed > 0)) return UI.toast('הקלידו סכום גדול מאפס.', 'error');
+          const paid = $('[data-qcur][aria-pressed="true"]', el).dataset.qcur;
+          const amount = paid === U.cur ? typed : FX.convert(typed, paid, U.cur);
+          const amountChanged = !tx || Math.abs(tx.amount) !== typed;
+          if (!(amount > 0)) return UI.toast(FX.blockedHint() || 'אין שער המרה זמין. התחברו לאינטרנט ונסו שוב.', 'error');
           if (!date) return UI.toast('חסר תאריך.', 'error');
           const cat = $('[data-pick][aria-pressed="true"]', el).dataset.pick;
           const desc = $('#q-desc', el).value.trim() || Cat.get(cat).name;
           Object.assign(t, { amount: U.round(-amount), date, categoryId: cat, description: desc, merchant: Classify.merchantKey(desc), splits: [] });
+          if (paid !== U.cur) Object.assign(t, { originalAmount: typed, originalCurrency: paid, details: `שולם ${U.nf.format(typed)} ${paid} · 1 ${paid === '₪' ? U.cur : paid} = ${(paid === '₪' ? FX.ils(U.cur) : FX.ils(paid)).toFixed(3)} ₪` });
+          else if (amountChanged) { delete t.originalAmount; delete t.originalCurrency; delete t.details; }
           if (!tx) t.hash = U.hash(`manual|${t.id}`);
           await Store.putTx(t); close();
           if (!tx) {
@@ -62,6 +73,19 @@ const Trip = {
       $$('[data-pick]', m.el).forEach((x) => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true');
     }));
     if (!$('[data-pick][aria-pressed="true"]', m.el)) $('[data-pick]', m.el).setAttribute('aria-pressed', 'true');
+    const conv = () => {
+      const paid = $('[data-qcur][aria-pressed="true"]', m.el).dataset.qcur; const v = +$('#q-amount', m.el).value;
+      const box = $('#q-conv', m.el);
+      if (paid === U.cur) { box.textContent = tx && tx.originalCurrency ? `נרשם במקור: ${U.nf.format(tx.originalAmount)} ${tx.originalCurrency}` : ''; return; }
+      const r = FX.convert(v || 0, paid, U.cur);
+      box.textContent = isNaN(r) ? (FX.blockedHint() || 'טוען שער…') : `${v ? `≈ ${U.money(r)} · ` : ''}${FX.label(U.cur === '₪' ? '$' : U.cur)}`;
+    };
+    $$('[data-qcur]', m.el).forEach((b) => (b.onclick = () => {
+      $$('[data-qcur]', m.el).forEach((x) => x.setAttribute('aria-pressed', String(x === b))); conv();
+      if (b.dataset.qcur !== U.cur) FX.get().then(conv).catch((e) => { $('#q-conv', m.el).textContent = FX.blockedHint() || e.message; });
+    }));
+    $('#q-amount', m.el).oninput = conv;
+    conv();
     $('#q-amount', m.el).focus();
   },
 
@@ -108,12 +132,13 @@ Views.trip = (main) => {
 
   main.innerHTML = `
     <div class="page-head"><h1>${U.esc(Registry.current().name)}</h1>
+      <button class="btn" data-fx>${UI.icon('arrow-left-right')}המרת מטבע</button>
       <button class="btn primary" data-add style="min-height:52px;font-size:16px">${UI.icon('plus')}הוצאה חדשה</button></div>
     <div class="card">
       ${totalBudget ? `<div class="row between"><span class="label">התקציב לכל הטיול</span><span class="label ${lvl}">${UI.icon(Budget.icon[lvl])} ${Budget.word[lvl]} · <span class="num">${pct}%</span></span></div>
         <div class="stat"><div class="amount">${UI.money(totalBudget - totalSpent)} <span class="caption">נשארו מתוך ${U.money(totalBudget)}</span></div></div>
         <div class="progress ${lvl}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="ניצול תקציב הטיול"><i style="width:${Math.min(pct, 100)}%"></i></div>
-        <div class="caption" style="margin-top:8px">הוצאתם עד עכשיו ${U.money(totalSpent)}</div>`
+        <div class="caption" style="margin-top:8px">הוצאתם עד עכשיו ${U.money(totalSpent)}<span id="trip-ils"></span></div>`
     : `<div class="row between"><span class="label">הוצאתם עד עכשיו</span></div><div class="stat"><div class="amount">${UI.money(totalSpent)}</div></div>
         <p class="caption">לחצו על קטגוריה למטה כדי לקבוע לה תקציב.</p>`}
     </div>
@@ -135,6 +160,12 @@ Views.trip = (main) => {
     : '<p class="muted">עדיין לא נרשמו הוצאות. לחצו על "הוצאה חדשה".</p>'}</div>`;
 
   $('[data-add]', main).onclick = () => Trip.add();
+  $('[data-fx]', main).onclick = () => FX.dialog();
+  // סכום ההוצאות גם בשקלים, כשמטבע הטיול אינו שקל
+  if (U.cur !== '₪' && totalSpent) {
+    const show = () => { const v = FX.convert(totalSpent, U.cur, '₪'); const el = $('#trip-ils', main); if (el && !isNaN(v)) el.textContent = ` (≈ ${U.nf.format(v)} ₪)`; };
+    show(); FX.get().then(show).catch(() => {});
+  }
   $('[data-new-cat]', main).onclick = () => Trip.editCat(null);
   $$('[data-cat]', main).forEach((b) => (b.onclick = (e) => { e.preventDefault(); Trip.editCat(b.dataset.cat); }));
   $$('[data-add-to]', main).forEach((b) => (b.onclick = () => Trip.add(null, { categoryId: b.dataset.addTo })));

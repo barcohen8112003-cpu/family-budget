@@ -51,7 +51,7 @@ Views.dashboard = (main) => {
 
   main.innerHTML = `
     <div class="page-head"><h1>${r.label}</h1>
-      <div class="row">${Period.html()}<button class="btn no-print" data-print>${UI.icon('printer')}דוח להדפסה / PDF</button></div></div>
+      <div class="row">${Period.html()}<button class="btn no-print" data-fx>${UI.icon('arrow-left-right')}המרת מטבע</button><button class="btn no-print" data-print>${UI.icon('printer')}דוח להדפסה / PDF</button></div></div>
     <div class="grid c4 keep2">
       <div class="card stat"><div class="label">הכנסות</div><div class="amount income">${UI.money(tot.income)}</div>
         ${hasPrev ? Dash.compare('מול התקופה הקודמת', tot.income, prevTot.income, false) : ''}${avgInc ? Dash.compare('מול הממוצע', tot.income, avgInc * mult, false) : ''}</div>
@@ -87,6 +87,7 @@ Views.dashboard = (main) => {
 
   Period.bind(main);
   $('[data-print]', main).onclick = () => Export.print();
+  $('[data-fx]', main).onclick = () => FX.dialog();
   $$('[data-cat]', main).forEach((a) => (a.onclick = (e) => { e.preventDefault(); App.go('transactions', { from: r.from, to: r.to, cats: [a.dataset.cat], kind: 'expense' }); }));
   $$('.item[data-id]', main).forEach((el) => (el.onclick = () => TxEdit.open(el.dataset.id)));
 
