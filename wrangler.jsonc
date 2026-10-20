@@ -1,12 +1,21 @@
 {
-  // Cloudflare Workers: מגיש את תיקיית www כאתר סטטי
+  // Cloudflare Workers: מגיש את תיקיית www, ושרת קטן לשיתוף תקציבים (src/worker.js)
   "name": "family-budget",
+  "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   // לפני כל פריסה נוצרת רשימת הקבצים שה-APK משתמש בה לעדכון
   "build": {
     "command": "node make-manifest.js"
   },
   "assets": {
-    "directory": "./www"
-  }
+    "directory": "./www",
+    "binding": "ASSETS"
+  },
+  // כל תקציב משותף נשמר כאובייקט נפרד (מוצפן)
+  "durable_objects": {
+    "bindings": [{ "name": "SHARES", "class_name": "ShareStore" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ShareStore"] }
+  ]
 }
