@@ -55,7 +55,7 @@ const Tx = {
 };
 
 Views.transactions = (main, params) => {
-  if (!Tx.f) { Tx.f = Tx.blank(); Tx.setMonth(Period.ym); }
+  if (!Tx.f) { Tx.f = Tx.blank(); if (App.kind !== 'trip') Tx.setMonth(Period.ym); }
   if (params) { Tx.f = { ...Tx.blank(), ...params }; App.params = null; }
   const f = Tx.f; const list = Tx.filtered();
   const tot = Calc.totals(list); const counted = list.filter(Calc.counts);
@@ -152,8 +152,8 @@ Views.transactions = (main, params) => {
       actions: [{ label: 'מחיקה', cls: 'danger', onClick: async (close, el) => { S.filters.splice(+$('#delf', el).value, 1); await Store.save('filters'); close(); rerender(); } }, { label: 'ביטול', cls: 'ghost', onClick: (close) => close() }],
     });
   }
-  $$('tr[data-id]', main).forEach((tr) => { tr.onclick = () => TxEdit.open(tr.dataset.id); tr.onkeydown = (e) => { if (e.key === 'Enter') TxEdit.open(tr.dataset.id); }; });
-  $('[data-add]', main).onclick = () => TxEdit.open(null);
+  $$('tr[data-id]', main).forEach((tr) => { tr.onclick = () => (App.kind === 'trip' ? Trip.add(S.tx.find((t) => t.id === tr.dataset.id)) : TxEdit.open(tr.dataset.id)); tr.onkeydown = (e) => { if (e.key === 'Enter') TxEdit.open(tr.dataset.id); }; });
+  $('[data-add]', main).onclick = () => (App.kind === 'trip' ? Trip.add() : TxEdit.open(null));
   $('[data-export]', main).onclick = () => Export.dialog(list, f);
   const gi = $('[data-go-import]', main); if (gi) gi.onclick = () => App.go('import');
 };

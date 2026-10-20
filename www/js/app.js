@@ -92,6 +92,13 @@ const Period = {
 
 const App = {
   route: 'dashboard', params: null,
+  kind: 'family', home: 'dashboard',
+  // תפריט לפי סוג התקציב: טיול מקבל תפריט מצומצם
+  nav() {
+    return App.kind === 'trip'
+      ? [['trip', 'הטיול', 'plane'], ['transactions', 'הוצאות', 'list'], ['settings', 'הגדרות', 'settings']]
+      : App.NAV;
+  },
   NAV: [
     ['dashboard', 'לוח בקרה', 'layout-dashboard'], ['transactions', 'עסקאות', 'list'], ['import', 'ייבוא', 'upload'],
     ['budget', 'תקציב ויעדים', 'target'], ['settings', 'הגדרות', 'settings'],
@@ -120,22 +127,34 @@ const App = {
     const rows = Registry.list.map((b) => `<div class="item">
         <button class="btn grow" style="justify-content:flex-start;min-height:56px;text-align:start;white-space:normal;min-width:0;padding:8px 12px" data-open="${b.id}">
           ${UI.icon('wallet')}<span class="stack" style="gap:0;align-items:flex-start"><span class="label">${U.esc(b.name)}</span>
-          <span class="caption">${b.id === Registry.last ? 'נפתח לאחרונה · ' : ''}נוצר ב-<span class="num">${U.il(b.created)}</span></span></span></button>
+          <span class="caption">${b.type === 'trip' ? `טיול · ${b.currency}` : 'משפחה'} · ${b.id === Registry.last ? 'נפתח לאחרונה · ' : ''}נוצר ב-<span class="num">${U.il(b.created)}</span></span></span></button>
         <button class="btn sm ghost icon" data-rename="${b.id}" aria-label="שינוי השם של ${U.esc(b.name)}">${UI.icon('pencil')}</button>
         <button class="btn sm ghost icon" data-remove="${b.id}" aria-label="מחיקת ${U.esc(b.name)}">${UI.icon('trash-2')}</button></div>`).join('');
     el.innerHTML = `<div class="card picker">
       <h2>איזה תקציב לנהל?</h2>
       <p class="muted" style="margin-bottom:16px">לכל תקציב עסקאות, קטגוריות ויעדים משלו.</p>
       ${rows ? `<div class="list">${rows}</div>` : '<p class="muted">אין עדיין תקציבים. צרו את הראשון.</p>'}
-      <form class="row" id="new-budget" style="margin-top:24px;flex-wrap:nowrap">
-        <input id="new-name" placeholder="שם לתקציב חדש" aria-label="שם התקציב החדש" style="flex:1;min-width:0">
-        <button class="btn primary">${UI.icon('plus')}תקציב חדש</button></form></div>`;
+      <form class="stack" id="new-budget" style="margin-top:24px;gap:12px">
+        <div class="label">תקציב חדש</div>
+        <div class="seg" role="group" aria-label="סוג התקציב" style="align-self:flex-start">
+          <button type="button" data-type="family" aria-pressed="true">${UI.icon('house')} משפחה</button>
+          <button type="button" data-type="trip" aria-pressed="false">${UI.icon('plane')} טיול</button></div>
+        <input id="new-name" placeholder="שם, למשל: הבית שלנו" aria-label="שם התקציב החדש">
+        <label class="field" id="new-cur-wrap" hidden><span>מטבע הטיול</span><select id="new-cur"><option value="$">דולר ($)</option><option value="₪">שקל (₪)</option><option value="€">אירו (€)</option></select></label>
+        <button class="btn primary">${UI.icon('plus')}יצירת התקציב</button></form></div>`;
+    let newType = 'family';
+    $$('[data-type]', el).forEach((b) => (b.onclick = () => {
+      newType = b.dataset.type;
+      $$('[data-type]', el).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      $('#new-cur-wrap', el).hidden = newType !== 'trip';
+      $('#new-name', el).placeholder = newType === 'trip' ? 'שם, למשל: טיול לארה"ב' : 'שם, למשל: הבית שלנו';
+    }));
     $$('[data-open]', el).forEach((b) => (b.onclick = () => App.openBudget(b.dataset.open)));
     $('#new-budget', el).onsubmit = async (e) => {
       e.preventDefault(); const name = $('#new-name', el).value.trim();
       if (!name) return UI.toast('הקלידו שם לתקציב החדש.', 'error');
       if (Registry.list.some((b) => b.name === name)) return UI.toast('כבר יש תקציב בשם הזה.', 'error');
-      const b = await Registry.add(name); App.openBudget(b.id);
+      const b = await Registry.add(name, newType, newType === 'trip' ? $('#new-cur', el).value : '₪'); App.openBudget(b.id);
     };
     $$('[data-rename]', el).forEach((btn) => (btn.onclick = () => {
       const b = Registry.get(btn.dataset.rename);
@@ -157,7 +176,8 @@ const App = {
   },
   async openBudget(id) {
     const b = Registry.get(id);
-    try { await Store.load(b.db); } catch (e) { return UI.error(e); }
+    App.kind = b.type || 'family'; App.home = App.kind === 'trip' ? 'trip' : 'dashboard'; U.cur = b.currency || '₪';
+    try { await Store.load(b.db, App.kind); } catch (e) { return UI.error(e); }
     Registry.last = id; await Registry.save();
     // איפוס מצב המסכים, כדי שסינון או ייבוא מתקציב אחר לא יישארו פתוחים
     Tx.f = null; Tx.advanced = false; Imp.queue = []; Imp.cur = null; Imp.step = 'upload'; Imp.done = [];
@@ -181,7 +201,7 @@ const App = {
   unlock() {
     $('#lock').hidden = true; $('#app').hidden = false;
     Period.ym = Calc.latestMonth();
-    App.go(S.tx.length ? 'dashboard' : 'import');
+    App.go(App.kind === 'trip' ? 'trip' : S.tx.length ? 'dashboard' : 'import');
   },
   // כפתור החזרה באנדרואיד: סגירת חלון קופץ, ביטול ייבוא, חזרה ללוח הבקרה, ואז יציאה
   onBack() {
@@ -189,14 +209,14 @@ const App = {
     if (App.route === 'picker') return false;
     if (App.route === 'lock') { App.picker(); return true; }
     if (App.route === 'import' && Imp.cur) { Imp.cancel(); return true; }
-    if (App.route !== 'dashboard') { App.go('dashboard'); return true; }
+    if (App.route !== App.home) { App.go(App.home); return true; }
     return false;
   },
   go(route, params = null) { App.route = route; App.params = params; App.render(); window.scrollTo(0, 0); },
   render() {
     const dark = document.documentElement.dataset.theme === 'dark';
     $('#nav').innerHTML = `<div class="brand">${U.esc(Registry.current().name)}</div>
-      ${App.NAV.map(([id, label, icon]) => `<button data-route="${id}" ${App.route === id ? 'aria-current="page"' : ''}>${UI.icon(icon)}<span>${label}</span></button>`).join('')}
+      ${App.nav().map(([id, label, icon]) => `<button data-route="${id}" ${App.route === id ? 'aria-current="page"' : ''}>${UI.icon(icon)}<span>${label}</span></button>`).join('')}
       <button data-switch-budget>${UI.icon('arrow-left-right')}<span>תקציבים</span></button>
       <div class="spacer"></div>
       <button class="desk" data-theme-toggle>${UI.icon(dark ? 'sun' : 'moon')}<span>${dark ? 'מצב בהיר' : 'מצב כהה'}</span></button>`;

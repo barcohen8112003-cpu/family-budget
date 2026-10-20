@@ -150,6 +150,12 @@ tfoot td { background: var(--surface-sunken); font-weight: 600; }
 .lock .picker { width: min(480px, 100%); text-align: start; }
 .lock .pin input { text-align: center; letter-spacing: 8px; font-size: 24px; width: 100%; margin: var(--space-4) 0; }
 
+.trip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4); }
+.trip-cat { padding: var(--space-4); }
+.cat-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.cat-pick .btn { justify-content: flex-start; white-space: normal; min-width: 0; padding: var(--space-2); text-align: start; }
+.cat-pick .btn[aria-pressed="true"] { border: 2px solid var(--brand); background: var(--brand-soft); }
+.seg button svg.lucide { width: 16px; height: 16px; vertical-align: -3px; }
 .chart-box { position: relative; height: 280px; width: 100%; direction: ltr; }
 .chart-box canvas { max-width: 100%; }
 .legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-2) var(--space-4); margin-top: var(--space-4); font-size: 14px; }

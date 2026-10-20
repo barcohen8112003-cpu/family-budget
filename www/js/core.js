@@ -27,10 +27,11 @@ const U = {
   daysInMonth(ym) { const [y, m] = ym.split('-').map(Number); return new Date(y, m, 0).getDate(); },
   nf: new Intl.NumberFormat('he-IL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
   // סכום לתצוגה. signed=true מוסיף + או −
+  cur: '₪', // מטבע התקציב הפתוח
   money(n, signed = false) {
     const abs = U.nf.format(Math.abs(U.round(n)));
     const sign = n < 0 ? '−' : signed && n > 0 ? '+' : '';
-    return `${sign}${abs} ₪`;
+    return `${sign}${abs} ${U.cur}`;
   },
   median(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; },
   sum: (a, f = (x) => x) => U.round(a.reduce((s, x) => s + f(x), 0)),
@@ -167,14 +168,15 @@ const Store = {
     Object.assign(S, { tx: [], categories: [], rules: {}, mappings: {}, budgets: {}, goals: [], filters: [], sources: [],
       settings: { theme: 'auto', pinHash: null, members: ['משותף'] } });
   },
-  async load(dbName) {
+  async load(dbName, kind = 'family') {
     Store.reset();
     await DB.open(dbName);
     S.tx = await DB.all('tx');
     const kv = await DB.all('kv');
     kv.forEach((r) => { if (KV_KEYS.includes(r.key)) S[r.key] = r.value; });
-    if (!S.categories.length) { S.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)); await Store.save('categories'); }
-    if (!S.categories.find((c) => c.id === 'cc')) S.categories.push(DEFAULT_CATEGORIES.find((c) => c.id === 'cc'));
+    // תקציב טיול מקבל קטגוריות טיול; תקציב משפחה את קטגוריות הבית וקטגוריית חיוב האשראי
+    if (!S.categories.length) { S.categories = JSON.parse(JSON.stringify(kind === 'trip' ? TRIP_CATEGORIES : DEFAULT_CATEGORIES)); await Store.save('categories'); }
+    if (kind !== 'trip' && !S.categories.find((c) => c.id === 'cc')) S.categories.push(DEFAULT_CATEGORIES.find((c) => c.id === 'cc'));
     S.settings = { theme: 'auto', pinHash: null, members: ['משותף'], ...S.settings };
     Calc.relink();
   },
@@ -248,9 +250,9 @@ const Registry = {
   },
   get: (id) => Registry.list.find((b) => b.id === id),
   current: () => Registry.get(Registry.last),
-  async add(name) {
+  async add(name, type = 'family', currency = '₪') {
     const id = U.uid();
-    const b = { id, name, db: `family-budget-${id}`, created: U.today() };
+    const b = { id, name, type, currency, db: `family-budget-${id}`, created: U.today() };
     Registry.list.push(b); await Registry.save(); return b;
   },
   async rename(id, name) { Registry.get(id).name = name; await Registry.save(); },

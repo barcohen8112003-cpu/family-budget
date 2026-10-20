@@ -44,7 +44,7 @@ const Export = {
   async xlsx(list) {
     if (!window.ExcelJS) throw new Error('רכיב הייצוא ל-Excel לא נטען.');
     const rows = list.filter(Calc.counts).sort((a, b) => (a.date < b.date ? -1 : 1));
-    const NIS = '#,##0.00 "₪"';
+    const NIS = `#,##0.00 "${U.cur}"`;
     const wb = new ExcelJS.Workbook(); wb.creator = 'תקציב משפחתי'; wb.created = new Date();
     const sheet = (name) => wb.addWorksheet(name, { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
     const style = (ws, moneyCols = [], totalRow = true) => {
