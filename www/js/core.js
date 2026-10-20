@@ -51,9 +51,11 @@ const U = {
 // ---------- IndexedDB ----------
 const DB = {
   db: null,
-  open() {
+  // לכל תקציב מאגר נפרד. התקציב הראשון (מלפני שהיו כמה תקציבים) נשאר במאגר 'family-budget'
+  open(name = 'family-budget') {
+    if (DB.db) { DB.db.close(); DB.db = null; }
     return new Promise((res, rej) => {
-      const req = indexedDB.open('family-budget', 1);
+      const req = indexedDB.open(name, 1);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains('tx')) db.createObjectStore('tx', { keyPath: 'id' });
@@ -160,8 +162,14 @@ const S = {
 const KV_KEYS = ['categories', 'rules', 'mappings', 'budgets', 'goals', 'filters', 'sources', 'settings'];
 
 const Store = {
-  async load() {
-    await DB.open();
+  // מצב נקי לפני טעינת תקציב, כדי ששום דבר לא יזלוג מתקציב שנפתח קודם
+  reset() {
+    Object.assign(S, { tx: [], categories: [], rules: {}, mappings: {}, budgets: {}, goals: [], filters: [], sources: [],
+      settings: { theme: 'auto', pinHash: null, members: ['משותף'] } });
+  },
+  async load(dbName) {
+    Store.reset();
+    await DB.open(dbName);
     S.tx = await DB.all('tx');
     const kv = await DB.all('kv');
     kv.forEach((r) => { if (KV_KEYS.includes(r.key)) S[r.key] = r.value; });
@@ -206,6 +214,53 @@ const Store = {
     await DB.put('tx', S.tx);
     for (const k of KV_KEYS) { if (data[k] !== undefined) { S[k] = data[k]; await Store.save(k); } }
     Calc.relink();
+  },
+};
+
+// ---------- רשימת התקציבים ----------
+// מאגר קטן ונפרד שמחזיק את רשימת התקציבים, את התקציב האחרון שנפתח ואת ערכת הצבעים
+const Registry = {
+  db: null, list: [], last: null, theme: 'auto',
+  open() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('family-budget-registry', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('kv', { keyPath: 'key' });
+      req.onerror = () => rej(new Error('לא ניתן לפתוח את מאגר הנתונים המקומי. ייתכן שהדפדפן במצב גלישה פרטית.'));
+      req.onsuccess = () => {
+        Registry.db = req.result;
+        const get = Registry.db.transaction('kv', 'readonly').objectStore('kv').getAll();
+        get.onsuccess = async () => {
+          get.result.forEach((r) => { Registry[r.key] = r.value; });
+          // הפעלה ראשונה: הנתונים הקיימים הופכים לתקציב הראשון ברשימה
+          if (!Registry.list.length) { Registry.list = [{ id: 'default', name: 'תקציב משפחתי', db: 'family-budget', created: U.today() }]; await Registry.save(); }
+          res();
+        };
+        get.onerror = () => rej(get.error);
+      };
+    });
+  },
+  save() {
+    return new Promise((res, rej) => {
+      const t = Registry.db.transaction('kv', 'readwrite'); const s = t.objectStore('kv');
+      ['list', 'last', 'theme'].forEach((key) => s.put({ key, value: Registry[key] }));
+      t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+    });
+  },
+  get: (id) => Registry.list.find((b) => b.id === id),
+  current: () => Registry.get(Registry.last),
+  async add(name) {
+    const id = U.uid();
+    const b = { id, name, db: `family-budget-${id}`, created: U.today() };
+    Registry.list.push(b); await Registry.save(); return b;
+  },
+  async rename(id, name) { Registry.get(id).name = name; await Registry.save(); },
+  async remove(id) {
+    const b = Registry.get(id);
+    if (Registry.last === id && DB.db) { DB.db.close(); DB.db = null; }
+    await new Promise((res) => { const req = indexedDB.deleteDatabase(b.db); req.onsuccess = req.onerror = req.onblocked = () => res(); });
+    Registry.list = Registry.list.filter((x) => x.id !== id);
+    if (Registry.last === id) Registry.last = null;
+    await Registry.save();
   },
 };
 

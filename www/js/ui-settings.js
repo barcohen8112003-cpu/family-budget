@@ -66,7 +66,7 @@ Views.settings = (main) => {
     <div class="page-head"><h1>הגדרות</h1></div>
     <div class="grid c2">
       <div class="card stack"><h3>תצוגה</h3>
-        <div class="seg" role="group" aria-label="ערכת צבעים">${[['auto', 'לפי המכשיר'], ['light', 'בהיר'], ['dark', 'כהה']].map(([k, l]) => `<button data-theme="${k}" aria-pressed="${S.settings.theme === k}">${l}</button>`).join('')}</div>
+        <div class="seg" role="group" aria-label="ערכת צבעים">${[['auto', 'לפי המכשיר'], ['light', 'בהיר'], ['dark', 'כהה']].map(([k, l]) => `<button data-theme="${k}" aria-pressed="${Registry.theme === k}">${l}</button>`).join('')}</div>
         <h3 style="margin-top:8px">בני משפחה</h3>
         <div class="row">${S.settings.members.map((m, i) => `<span class="chip" style="padding:6px 8px">${U.esc(m)}${i ? ` <button class="btn sm ghost icon" style="min-height:24px;width:24px" data-del-member="${i}" aria-label="הסרת ${U.esc(m)}">${UI.icon('x')}</button>` : ''}</span>`).join('')}</div>
         <form class="row" id="member-form"><input id="member" placeholder="שם, למשל: אבא" aria-label="שם בן משפחה חדש" style="flex:1;min-width:140px"><button class="btn">הוספה</button></form>
@@ -91,7 +91,7 @@ Views.settings = (main) => {
       ${rules.length ? `<div class="list">${rules.map(([k, v]) => `<div class="item"><div class="grow ellipsis">${U.esc(k)}</div>${UI.cat(v)}<button class="btn sm ghost icon" data-del-rule="${U.esc(k)}" aria-label="מחיקת הכלל">${UI.icon('trash-2')}</button></div>`).join('')}</div>`
     : '<p class="muted">כשתשנו קטגוריה של עסקה ותבחרו להחיל על כל העסקאות מאותו בית עסק, הכלל יופיע כאן.</p>'}</div>`;
 
-  $$('[data-theme]', main).forEach((b) => (b.onclick = async () => { S.settings.theme = b.dataset.theme; await Store.save('settings'); App.applyTheme(); App.render(); }));
+  $$('[data-theme]', main).forEach((b) => (b.onclick = async () => { await App.setTheme(b.dataset.theme); App.render(); }));
   $('#member-form', main).onsubmit = async (e) => {
     e.preventDefault(); const v = $('#member', main).value.trim();
     if (v && !S.settings.members.includes(v)) { S.settings.members.push(v); await Store.save('settings'); App.render(); }

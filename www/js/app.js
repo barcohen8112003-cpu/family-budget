@@ -98,26 +98,80 @@ const App = {
   ],
   async start() {
     if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
-    try { await Store.load(); }
+    try { await Registry.open(); }
     catch (e) { document.body.innerHTML = `<div class="lock"><div class="card"><h2>לא ניתן לטעון את הנתונים</h2><p class="muted">${U.esc(e.message)}</p></div></div>`; return; }
     App.applyTheme();
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', App.applyTheme);
-    if (S.settings.pinHash) App.lock(); else App.unlock();
+    App.picker();
   },
+  // ערכת הצבעים משותפת לכל התקציבים
   applyTheme() {
-    const t = S.settings.theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : S.settings.theme;
+    const pref = Registry.theme || 'auto';
+    const t = pref === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : pref;
     document.documentElement.dataset.theme = t;
   },
-  async toggleTheme() {
-    S.settings.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    await Store.save('settings'); App.applyTheme(); App.render();
+  async setTheme(t) { Registry.theme = t; await Registry.save(); App.applyTheme(); },
+  async toggleTheme() { await App.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); App.render(); },
+
+  // מסך הפתיחה: איזה תקציב לנהל
+  picker() {
+    App.route = 'picker';
+    $('#app').hidden = true; const el = $('#lock'); el.hidden = false;
+    const rows = Registry.list.map((b) => `<div class="item">
+        <button class="btn grow" style="justify-content:flex-start;min-height:56px;text-align:start;white-space:normal;min-width:0;padding:8px 12px" data-open="${b.id}">
+          ${UI.icon('wallet')}<span class="stack" style="gap:0;align-items:flex-start"><span class="label">${U.esc(b.name)}</span>
+          <span class="caption">${b.id === Registry.last ? 'נפתח לאחרונה · ' : ''}נוצר ב-<span class="num">${U.il(b.created)}</span></span></span></button>
+        <button class="btn sm ghost icon" data-rename="${b.id}" aria-label="שינוי השם של ${U.esc(b.name)}">${UI.icon('pencil')}</button>
+        <button class="btn sm ghost icon" data-remove="${b.id}" aria-label="מחיקת ${U.esc(b.name)}">${UI.icon('trash-2')}</button></div>`).join('');
+    el.innerHTML = `<div class="card picker">
+      <h2>איזה תקציב לנהל?</h2>
+      <p class="muted" style="margin-bottom:16px">לכל תקציב עסקאות, קטגוריות ויעדים משלו.</p>
+      ${rows ? `<div class="list">${rows}</div>` : '<p class="muted">אין עדיין תקציבים. צרו את הראשון.</p>'}
+      <form class="row" id="new-budget" style="margin-top:24px;flex-wrap:nowrap">
+        <input id="new-name" placeholder="שם לתקציב חדש" aria-label="שם התקציב החדש" style="flex:1;min-width:0">
+        <button class="btn primary">${UI.icon('plus')}תקציב חדש</button></form></div>`;
+    $$('[data-open]', el).forEach((b) => (b.onclick = () => App.openBudget(b.dataset.open)));
+    $('#new-budget', el).onsubmit = async (e) => {
+      e.preventDefault(); const name = $('#new-name', el).value.trim();
+      if (!name) return UI.toast('הקלידו שם לתקציב החדש.', 'error');
+      if (Registry.list.some((b) => b.name === name)) return UI.toast('כבר יש תקציב בשם הזה.', 'error');
+      const b = await Registry.add(name); App.openBudget(b.id);
+    };
+    $$('[data-rename]', el).forEach((btn) => (btn.onclick = () => {
+      const b = Registry.get(btn.dataset.rename);
+      UI.modal({
+        title: 'שינוי שם התקציב', body: `<label class="field"><span>שם</span><input id="rn" value="${U.esc(b.name)}"></label>`,
+        actions: [{ label: 'שמירה', cls: 'primary', onClick: async (close, m) => {
+          const name = $('#rn', m).value.trim(); if (!name) return;
+          await Registry.rename(b.id, name); close(); App.picker();
+        } }, { label: 'ביטול', cls: 'ghost', onClick: (close) => close() }],
+      });
+    }));
+    $$('[data-remove]', el).forEach((btn) => (btn.onclick = async () => {
+      const b = Registry.get(btn.dataset.remove);
+      if (!(await UI.confirm(`למחוק את התקציב "${b.name}" עם כל העסקאות, היעדים וההגדרות שלו?`, 'המשך', true))) return;
+      if (!(await UI.confirm('אישור אחרון: המחיקה סופית ואי אפשר לבטל אותה. מומלץ לגבות קודם מתוך ההגדרות של התקציב. למחוק?', 'מחק את התקציב', true))) return;
+      await Registry.remove(b.id); UI.toast(`התקציב "${b.name}" נמחק`); App.picker();
+    }));
+    UI.icons();
+  },
+  async openBudget(id) {
+    const b = Registry.get(id);
+    try { await Store.load(b.db); } catch (e) { return UI.error(e); }
+    Registry.last = id; await Registry.save();
+    // איפוס מצב המסכים, כדי שסינון או ייבוא מתקציב אחר לא יישארו פתוחים
+    Tx.f = null; Tx.advanced = false; Imp.queue = []; Imp.cur = null; Imp.step = 'upload'; Imp.done = [];
+    if (S.settings.pinHash) App.lock(); else App.unlock();
   },
   pinHash: (pin) => U.sha(`family-budget:${pin}`),
   lock() {
+    App.route = 'lock';
     $('#app').hidden = true; const el = $('#lock'); el.hidden = false;
-    el.innerHTML = `<form class="card"><h2>תקציב משפחתי</h2><p class="muted">הקלידו את קוד ה-PIN</p>
+    el.innerHTML = `<form class="card pin"><h2>${U.esc(Registry.current().name)}</h2><p class="muted">הקלידו את קוד ה-PIN</p>
       <input type="password" inputmode="numeric" autocomplete="off" maxlength="8" aria-label="קוד PIN" autofocus>
-      <p class="over label" hidden>הקוד שגוי. נסו שוב.</p><button class="btn primary" style="width:100%">כניסה</button></form>`;
+      <p class="over label" hidden>הקוד שגוי. נסו שוב.</p><button class="btn primary" style="width:100%">כניסה</button>
+      <button type="button" class="btn ghost" style="width:100%;margin-top:8px" data-switch>תקציב אחר</button></form>`;
+    $('[data-switch]', el).onclick = () => App.picker();
     $('form', el).onsubmit = async (e) => {
       e.preventDefault(); const inp = $('input', el);
       if (await App.pinHash(inp.value) === S.settings.pinHash) App.unlock();
@@ -132,6 +186,8 @@ const App = {
   // כפתור החזרה באנדרואיד: סגירת חלון קופץ, ביטול ייבוא, חזרה ללוח הבקרה, ואז יציאה
   onBack() {
     const m = $('.modal-back'); if (m) { m.remove(); return true; }
+    if (App.route === 'picker') return false;
+    if (App.route === 'lock') { App.picker(); return true; }
     if (App.route === 'import' && Imp.cur) { Imp.cancel(); return true; }
     if (App.route !== 'dashboard') { App.go('dashboard'); return true; }
     return false;
@@ -139,12 +195,14 @@ const App = {
   go(route, params = null) { App.route = route; App.params = params; App.render(); window.scrollTo(0, 0); },
   render() {
     const dark = document.documentElement.dataset.theme === 'dark';
-    $('#nav').innerHTML = `<div class="brand">תקציב משפחתי</div>
+    $('#nav').innerHTML = `<div class="brand">${U.esc(Registry.current().name)}</div>
       ${App.NAV.map(([id, label, icon]) => `<button data-route="${id}" ${App.route === id ? 'aria-current="page"' : ''}>${UI.icon(icon)}<span>${label}</span></button>`).join('')}
+      <button data-switch-budget>${UI.icon('arrow-left-right')}<span>תקציבים</span></button>
       <div class="spacer"></div>
       <button class="desk" data-theme-toggle>${UI.icon(dark ? 'sun' : 'moon')}<span>${dark ? 'מצב בהיר' : 'מצב כהה'}</span></button>`;
     $$('#nav [data-route]').forEach((b) => (b.onclick = () => App.go(b.dataset.route)));
     $('#nav [data-theme-toggle]').onclick = App.toggleTheme;
+    $('#nav [data-switch-budget]').onclick = () => App.picker();
     const main = $('#main');
     try {
       const view = Views[App.route];

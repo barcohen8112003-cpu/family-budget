@@ -147,7 +147,8 @@ tfoot td { background: var(--surface-sunken); font-weight: 600; }
 /* נעילה */
 .lock { min-height: 100vh; display: grid; place-items: center; padding: var(--space-4); }
 .lock .card { width: min(360px, 100%); text-align: center; }
-.lock input { text-align: center; letter-spacing: 8px; font-size: 24px; width: 100%; margin: var(--space-4) 0; }
+.lock .picker { width: min(480px, 100%); text-align: start; }
+.lock .pin input { text-align: center; letter-spacing: 8px; font-size: 24px; width: 100%; margin: var(--space-4) 0; }
 
 .chart-box { position: relative; height: 280px; width: 100%; direction: ltr; }
 .chart-box canvas { max-width: 100%; }
