@@ -11,8 +11,8 @@ android {
         applicationId 'il.family.budget'
         minSdk 26
         targetSdk 34
-        versionCode 8
-        versionName '1.55'
+        versionCode 9
+        versionName '1.6'
     }
 
     // קובצי האפליקציה (HTML/JS) נלקחים ישירות מתיקיית www
