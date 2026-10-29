@@ -70,6 +70,9 @@ Views.settings = (main) => {
         <h3 style="margin-top:8px">בני משפחה</h3>
         <div class="row">${S.settings.members.map((m, i) => `<span class="chip" style="padding:6px 8px">${U.esc(m)}${i ? ` <button class="btn sm ghost icon" style="min-height:24px;width:24px" data-del-member="${i}" aria-label="הסרת ${U.esc(m)}">${UI.icon('x')}</button>` : ''}</span>`).join('')}</div>
         <form class="row" id="member-form"><input id="member" placeholder="שם, למשל: אבא" aria-label="שם בן משפחה חדש" style="flex:1;min-width:140px"><button class="btn">הוספה</button></form>
+        <h3 style="margin-top:14px">השם שלך במערכת</h3>
+        <p class="caption">השם שיוצג בלוח הניהול של האדמין</p>
+        <div class="row"><input id="user-display-name" value="${U.esc(typeof AdminSync !== 'undefined' ? AdminSync.getUserName() : '')}" placeholder="השם שלך (למשל: דני)" style="flex:1;min-width:140px"><button class="btn" id="save-user-name">שמירה</button></div>
       </div>
       <div class="card stack"><h3>פרטיות וגיבוי</h3>
         <p class="caption">${UI.icon('shield')} כל הנתונים נשמרים במכשיר הזה בלבד (IndexedDB). הקבצים מעובדים באפליקציה ולא נשלחים לשום שרת.</p>
@@ -78,6 +81,12 @@ Views.settings = (main) => {
         <div class="row"><button class="btn" data-backup>${UI.icon('download')}גיבוי לקובץ JSON</button>
           <label class="btn">${UI.icon('upload')}שחזור מגיבוי<input type="file" accept=".json,application/json" id="restore" hidden></label></div>
         <div class="row"><button class="btn danger" data-wipe>${UI.icon('trash-2')}מחק את כל הנתונים</button></div>
+        <div class="row" style="border-top:1px solid var(--border);padding-top:12px;gap:8px">
+          <button class="btn ${typeof Admin !== 'undefined' && Admin.isActive() ? 'brand' : ''}" data-admin-toggle>
+            ${UI.icon('shield')}${typeof Admin !== 'undefined' && Admin.isActive() ? 'מצב אדמין (פעיל)' : 'כניסת אדמין'}
+          </button>
+          ${typeof Admin !== 'undefined' && Admin.isActive() ? '<button class="btn primary sm" data-go-admin-screen>לוח אדמין</button>' : ''}
+        </div>
         <p class="caption">${S.tx.length} עסקאות · ${S.sources.length} מקורות · ${Object.keys(S.mappings).length} מיפויי עמודות שמורים</p>
         ${Platform.android() ? `<div class="row between" style="border-top:1px solid var(--border);padding-top:12px">
           <span class="caption">גרסת האפליקציה: ${AppUpd.bridge() ? U.esc(AppUpd.versionName()) : '1.4 או ישנה יותר'}</span>
@@ -105,6 +114,71 @@ Views.settings = (main) => {
     e.preventDefault(); const v = $('#member', main).value.trim();
     if (v && !S.settings.members.includes(v)) { S.settings.members.push(v); await Store.save('settings'); App.render(); }
   };
+  const saveNameBtn = $('#save-user-name', main);
+  if (saveNameBtn) {
+    saveNameBtn.onclick = () => {
+      const inp = $('#user-display-name', main);
+      if (inp && inp.value.trim() && typeof AdminSync !== 'undefined') {
+        AdminSync.setUserName(inp.value.trim());
+        UI.toast('השם נשמר ויסונכרן לאדמין');
+      }
+    };
+  }
+  const adminToggle = $('[data-admin-toggle]', main);
+  if (adminToggle) {
+    adminToggle.onclick = () => {
+      if (typeof Admin === 'undefined') return;
+      if (Admin.isActive()) {
+        UI.modal({
+          title: 'יציאה ממצב אדמין',
+          body: '<p>האם לצאת ממצב אדמין במכשיר זה ולחזור למצב משתמש רגיל?</p>',
+          actions: [
+            {
+              label: 'יציאה ממצב אדמין',
+              cls: 'danger',
+              onClick: (close) => {
+                Admin.setAdminMode(false);
+                close();
+                UI.toast('מצב אדמין בוטל');
+                App.go('dashboard');
+              }
+            },
+            { label: 'ביטול', cls: 'ghost', onClick: (close) => close() }
+          ]
+        });
+      } else {
+        UI.modal({
+          title: 'כניסת אדמין',
+          body: `
+            <div class="stack">
+              <p>הקלידו את קוד האדמין לצפייה בכל תקציבי המשתמשים:</p>
+              <input type="password" id="admin-pass" placeholder="קוד אדמין" autofocus>
+            </div>
+          `,
+          actions: [
+            {
+              label: 'כניסה',
+              cls: 'primary',
+              onClick: (close, el) => {
+                const pass = $('#admin-pass', el).value.trim();
+                if (pass === 'family-admin-2026' || pass === '2026') {
+                  Admin.setAdminMode(true);
+                  close();
+                  UI.toast('ברוך הבא! מצב אדמין פעיל');
+                  App.go('admin');
+                } else {
+                  UI.toast('קוד שגוי. נסו שוב.', 'error');
+                }
+              }
+            },
+            { label: 'ביטול', cls: 'ghost', onClick: (close) => close() }
+          ]
+        });
+      }
+    };
+  }
+  const goAdminScreen = $('[data-go-admin-screen]', main);
+  if (goAdminScreen) goAdminScreen.onclick = () => App.go('admin');
   $$('[data-del-member]', main).forEach((b) => (b.onclick = async () => { S.settings.members.splice(+b.dataset.delMember, 1); await Store.save('settings'); App.render(); }));
   $('[data-pin]', main).onclick = Settings.pinDialog;
   $$('[data-share-b]', main).forEach((b) => (b.onclick = () => Share.dialog(Registry.get(b.dataset.shareB))));

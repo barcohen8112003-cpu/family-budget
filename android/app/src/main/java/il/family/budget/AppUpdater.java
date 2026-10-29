@@ -25,7 +25,8 @@ final class AppUpdater {
         new Thread(() -> {
             try {
                 report.report("downloading", "");
-                byte[] apk = Updater.fetch(APK_PATH);
+                String apkPath = ctx.getPackageName().endsWith(".admin") ? "apk/family-budget-admin.apk" : APK_PATH;
+                byte[] apk = Updater.fetch(apkPath);
                 if (!Updater.sha256(apk).equalsIgnoreCase(sha256)) throw new SecurityException("הקובץ שהורד פגום. נסו שוב.");
                 PackageInstaller installer = ctx.getPackageManager().getPackageInstaller();
                 PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
