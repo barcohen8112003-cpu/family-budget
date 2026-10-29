@@ -71,9 +71,6 @@ Views.settings = (main) => {
         <div class="row">${S.settings.members.map((m, i) => `<span class="chip" style="padding:6px 8px">${U.esc(m)}${i ? ` <button class="btn sm ghost icon" style="min-height:24px;width:24px" data-del-member="${i}" aria-label="הסרת ${U.esc(m)}">${UI.icon('x')}</button>` : ''}</span>`).join('')}</div>
         <form class="row" id="member-form"><input id="member" placeholder="שם, למשל: אבא" aria-label="שם בן משפחה חדש" style="flex:1;min-width:140px"><button class="btn">הוספה</button></form>
       </div>
-      <div class="card stack"><h3>שיתוף לצפייה</h3>
-        <p class="muted label">${Share.isOwner() ? 'התקציב משותף. מי שקיבל את הקישור רואה כל שינוי, ולא יכול לערוך.' : 'שלחו קישור, ומי שיקבל אותו יראה את התקציב באפליקציה שלו, לצפייה בלבד.'}</p>
-        <div class="row"><button class="btn" data-share>${UI.icon('share-2')}${Share.isOwner() ? 'ניהול השיתוף' : 'שיתוף התקציב'}</button></div></div>
       <div class="card stack"><h3>פרטיות וגיבוי</h3>
         <p class="caption">${UI.icon('shield')} כל הנתונים נשמרים במכשיר הזה בלבד (IndexedDB). הקבצים מעובדים באפליקציה ולא נשלחים לשום שרת.</p>
         <div class="row"><button class="btn" data-pin>${UI.icon('lock')}${S.settings.pinHash ? 'החלפת קוד PIN' : 'הגדרת קוד PIN'}</button>
@@ -84,6 +81,12 @@ Views.settings = (main) => {
         <p class="caption">${S.tx.length} עסקאות · ${S.sources.length} מקורות · ${Object.keys(S.mappings).length} מיפויי עמודות שמורים</p>
       </div>
     </div>
+    <div class="card section"><h3>שיתוף תקציבים</h3>
+      <p class="muted label" style="margin:4px 0 8px">בחרו תקציב ושלחו קישור. מי שיקבל אותו יראה את התקציב אצלו, וכל שינוי שתעשו יופיע אצלו תוך כמה שניות.</p>
+      <div class="list">${Registry.list.filter((x) => !(x.share && x.share.role === 'viewer')).map((x) => `<div class="item">
+        <div class="grow"><div class="label">${U.esc(x.name)}${x.id === Registry.last ? ' <span class="caption">(פתוח עכשיו)</span>' : ''}</div>
+          <div class="caption">${x.type === 'trip' ? 'טיול' : 'משפחה'} · ${x.share ? `<span class="ok">משותף</span>${x.share.pending ? ' · <span class="warn">ממתין להעלאה</span>' : ''}` : 'לא משותף'}</div></div>
+        <button class="btn sm ${x.share ? '' : 'primary'}" data-share-b="${x.id}">${UI.icon('share-2')}${x.share ? 'ניהול' : 'שיתוף'}</button></div>`).join('')}</div></div>
     <div class="card section"><div class="row between" style="margin-bottom:16px"><h3>קטגוריות</h3><button class="btn sm" data-cat-add>${UI.icon('plus')}קטגוריה חדשה</button></div>
       <div class="list">${Cat.tops().map((c) => `<div class="item" style="flex-wrap:wrap"><div class="grow">${UI.cat(c.id)}
           <div class="row" style="margin-top:6px;gap:6px">${Cat.children(c.id).map((s) => `<button class="chip" style="border:0;cursor:pointer" data-cat-edit="${s.id}">${U.esc(s.name)}</button>`).join('')}
@@ -101,7 +104,7 @@ Views.settings = (main) => {
   };
   $$('[data-del-member]', main).forEach((b) => (b.onclick = async () => { S.settings.members.splice(+b.dataset.delMember, 1); await Store.save('settings'); App.render(); }));
   $('[data-pin]', main).onclick = Settings.pinDialog;
-  $('[data-share]', main).onclick = () => Share.dialog();
+  $$('[data-share-b]', main).forEach((b) => (b.onclick = () => Share.dialog(Registry.get(b.dataset.shareB))));
   const off = $('[data-pin-off]', main); if (off) off.onclick = async () => { S.settings.pinHash = null; await Store.save('settings'); UI.toast('קוד ה-PIN בוטל'); App.render(); };
   $('[data-backup]', main).onclick = () => Export.backup().catch(UI.error);
   $('#restore', main).onchange = async (e) => {

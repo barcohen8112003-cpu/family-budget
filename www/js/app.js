@@ -114,6 +114,7 @@ const App = {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', App.applyTheme);
     App.picker();
     Share.incoming();
+    Share.live();
   },
   // ערכת הצבעים משותפת לכל התקציבים
   applyTheme() {

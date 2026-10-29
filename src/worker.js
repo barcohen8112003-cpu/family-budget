@@ -11,7 +11,7 @@ const APP_CERT = 'C6:2F:1C:98:AC:1B:61:28:BA:1A:EC:CF:10:47:52:D3:EA:A0:03:2B:69
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-None-Match',
   'Access-Control-Max-Age': '86400',
 };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS } });
@@ -28,7 +28,10 @@ export class ShareStore extends DurableObject {
     const owner = await storage.get('owner');
     if (request.method === 'GET') {
       const share = await storage.get('share');
-      return share ? json(share) : json({ error: 'not-found' }, 404);
+      if (!share) return json({ error: 'not-found' }, 404);
+      // הצופה שולח את גרסת העותק שלו; אם לא השתנה כלום, עונים בלי לשלוח את התקציב שוב
+      if (request.headers.get('If-None-Match') === `"${share.updated}"`) return new Response(null, { status: 304, headers: CORS });
+      return json(share);
     }
     if (!auth || auth.length < 32) return json({ error: 'unauthorized' }, 401);
     const hash = await sha256(auth);
