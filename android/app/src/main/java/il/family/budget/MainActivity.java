@@ -1,9 +1,15 @@
 package il.family.budget;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageInstaller;
+import android.provider.Settings;
+
+import org.json.JSONObject;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -55,10 +61,49 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** מעביר למסכים את מצב עדכון האפליקציה (הורדה, אישור, שגיאה). */
+    void updateStatus(String state, String message) {
+        runOnUiThread(() -> {
+            if (web != null) web.evaluateJavascript("window.AppUpd && AppUpd.status(" + JSONObject.quote(state) + "," + JSONObject.quote(message == null ? "" : message) + ")", null);
+        });
+    }
+
+    // תשובת מתקין אנדרואיד: לפתוח את חלון האישור, או לדווח על שגיאה/ביטול
+    private final BroadcastReceiver installResult = new BroadcastReceiver() {
+        @Override
+        @SuppressWarnings("deprecation")
+        public void onReceive(Context ctx, Intent intent) {
+            int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
+            if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
+                if (confirm != null) {
+                    confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(confirm);
+                }
+            } else if (status == PackageInstaller.STATUS_FAILURE_ABORTED) {
+                updateStatus("cancelled", "");
+            } else if (status != PackageInstaller.STATUS_SUCCESS) {
+                updateStatus("error", intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
+            }
+        }
+    };
+
+    @Override
+    protected void onDestroy() {
+        try {
+            unregisterReceiver(installResult);
+        } catch (Exception ignored) {
+        }
+        super.onDestroy();
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         pendingLink = linkFrom(getIntent());
+        IntentFilter filter = new IntentFilter(AppUpdater.ACTION);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(installResult, filter, Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(installResult, filter);
         web = new WebView(this);
         setContentView(web);
         WebSettings s = web.getSettings();
@@ -181,10 +226,36 @@ public class MainActivity extends Activity {
 
     /** גשר ל-JavaScript: שמירת קבצים, הדפסה, שליחת קישור וקבלת קישור שיתוף. */
     private class Bridge {
-        /** גרסת הגשר. 2 = יש גישה לשרת השיתוף והשערים, שליחה וקבלה של קישורים. */
+        /** גרסת הגשר. 2 = שיתוף, שערים וקישורים. 3 = עדכון האפליקציה מתוכה. */
         @JavascriptInterface
         public int apiVersion() {
-            return 2;
+            return 3;
+        }
+
+        @JavascriptInterface
+        @SuppressWarnings("deprecation")
+        public int appVersionCode() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+
+        /** האם המשתמש כבר אישר לאפליקציה להתקין עדכונים. */
+        @JavascriptInterface
+        public boolean canInstall() {
+            return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
+        }
+
+        @JavascriptInterface
+        public void openInstallPermission() {
+            runOnUiThread(() -> startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))));
+        }
+
+        @JavascriptInterface
+        public void installUpdate(String sha256) {
+            AppUpdater.install(MainActivity.this, sha256, MainActivity.this::updateStatus);
         }
 
         @JavascriptInterface

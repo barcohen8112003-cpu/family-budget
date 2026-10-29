@@ -11,7 +11,7 @@ const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((e) =
   const full = path.join(dir, e.name);
   if (e.isDirectory()) return walk(full);
   const rel = path.relative(root, full).split(path.sep).join('/');
-  if (rel === 'manifest.json') return;
+  if (rel === 'manifest.json' || rel.startsWith('apk/')) return;
   files[rel] = crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex');
 });
 walk(root);

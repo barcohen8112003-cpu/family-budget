@@ -89,6 +89,13 @@ async function rates(ctx) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // הגרסה האחרונה של ה-APK (מספר גרסה, גודל וגיבוב), כדי שהאפליקציה תדע להציע עדכון
+    if (url.pathname === '/api/app') {
+      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+      const r = await env.ASSETS.fetch(new Request(new URL('/apk/version.json', url)));
+      if (!r.ok) return json({ error: 'no-release' }, 404);
+      return json(await r.json());
+    }
     if (url.pathname === '/api/rate') {
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
       return rates(ctx);

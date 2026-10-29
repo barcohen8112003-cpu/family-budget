@@ -1,6 +1,7 @@
 # קבצים אישיים ותוצרי בנייה לא עולים לריפו
 הקבצים שלי/
 *.apk
+!www/apk/family-budget.apk
 android/.gradle/
 android/build/
 android/app/build/

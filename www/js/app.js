@@ -115,6 +115,7 @@ const App = {
     App.picker();
     Share.incoming();
     Share.live();
+    AppUpd.check();
   },
   // ערכת הצבעים משותפת לכל התקציבים
   applyTheme() {

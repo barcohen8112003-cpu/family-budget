@@ -11,13 +11,17 @@ android {
         applicationId 'il.family.budget'
         minSdk 26
         targetSdk 34
-        versionCode 5
-        versionName '1.4'
+        versionCode 6
+        versionName '1.5'
     }
 
     // קובצי האפליקציה (HTML/JS) נלקחים ישירות מתיקיית www
     sourceSets {
         main.assets.srcDirs = ['../../www']
+    }
+    // תיקיית apk (הגרסה המפורסמת להורדה) לא נארזת בתוך האפליקציה
+    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~:!apk'
     }
 
     compileOptions {

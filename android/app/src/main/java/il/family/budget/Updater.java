@@ -109,7 +109,7 @@ final class Updater {
         }
     }
 
-    private static byte[] fetch(String path) throws Exception {
+    static byte[] fetch(String path) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(SITE + path).openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(20000);
@@ -124,14 +124,14 @@ final class Updater {
         }
     }
 
-    private static byte[] readAll(InputStream in) throws Exception {
+    static byte[] readAll(InputStream in) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buf = new byte[16384];
         for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
         return out.toByteArray();
     }
 
-    private static String sha256(byte[] data) throws Exception {
+    static String sha256(byte[] data) throws Exception {
         StringBuilder sb = new StringBuilder();
         for (byte b : MessageDigest.getInstance("SHA-256").digest(data)) sb.append(String.format("%02x", b));
         return sb.toString();

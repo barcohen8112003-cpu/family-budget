@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- הרשת משמשת רק להורדת עדכוני קוד (Updater). ה-WebView עצמו חסום לכל כתובת חיצונית -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- עדכון האפליקציה מתוכה. המשתמש מאשר פעם אחת, ואת כל התקנה מאשרים בחלון של אנדרואיד -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <application
