@@ -6,14 +6,17 @@ const AppUpd = {
   info: null, busy: false,
   bridge: () => Platform.android() && typeof window.AndroidBridge.installUpdate === 'function',
   local: () => (AppUpd.bridge() ? window.AndroidBridge.appVersionCode() : 0),
+  versionName: () => (typeof window.AndroidBridge.appVersionName === 'function' ? window.AndroidBridge.appVersionName() : `1.${AppUpd.local() - 1}`), // 1.5 עדיין לא מדווחת שם גרסה
+  // מחזיר 'update' כשיש גרסה חדשה (ומציג את הפס), 'latest' או 'offline'
   async check() {
-    if (!Platform.android()) return;
+    if (!Platform.android()) return 'latest';
     try {
       const r = await fetch(`${Share.SITE}/api/app`, { cache: 'no-store' });
-      if (!r.ok) return;
+      if (!r.ok) return 'offline';
       AppUpd.info = await r.json();
-      if (!AppUpd.bridge() || AppUpd.info.versionCode > AppUpd.local()) AppUpd.bar();
-    } catch (e) { /* בלי רשת, או גרסה ישנה שחוסמת: אין מה להציע */ }
+      if (!AppUpd.bridge() || AppUpd.info.versionCode > AppUpd.local()) { AppUpd.bar(); return 'update'; }
+      return 'latest';
+    } catch (e) { return 'offline'; }
   },
   bar(text) {
     let el = $('#upd-bar');

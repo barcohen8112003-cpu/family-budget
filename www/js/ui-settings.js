@@ -79,6 +79,9 @@ Views.settings = (main) => {
           <label class="btn">${UI.icon('upload')}שחזור מגיבוי<input type="file" accept=".json,application/json" id="restore" hidden></label></div>
         <div class="row"><button class="btn danger" data-wipe>${UI.icon('trash-2')}מחק את כל הנתונים</button></div>
         <p class="caption">${S.tx.length} עסקאות · ${S.sources.length} מקורות · ${Object.keys(S.mappings).length} מיפויי עמודות שמורים</p>
+        ${Platform.android() ? `<div class="row between" style="border-top:1px solid var(--border);padding-top:12px">
+          <span class="caption">גרסת האפליקציה: ${AppUpd.bridge() ? U.esc(AppUpd.versionName()) : '1.4 או ישנה יותר'}</span>
+          <button class="btn sm" data-check-upd>${UI.icon('refresh-cw')}בדיקת עדכונים</button></div>` : ''}
       </div>
     </div>
     <div class="card section"><h3>שיתוף תקציבים</h3>
@@ -107,6 +110,8 @@ Views.settings = (main) => {
   $$('[data-share-b]', main).forEach((b) => (b.onclick = () => Share.dialog(Registry.get(b.dataset.shareB))));
   const off = $('[data-pin-off]', main); if (off) off.onclick = async () => { S.settings.pinHash = null; await Store.save('settings'); UI.toast('קוד ה-PIN בוטל'); App.render(); };
   $('[data-backup]', main).onclick = () => Export.backup().catch(UI.error);
+  const chk = $('[data-check-upd]', main);
+  if (chk) chk.onclick = async () => { chk.disabled = true; const r = await AppUpd.check(true); chk.disabled = false; if (r === 'latest') UI.toast('יש לכם את הגרסה האחרונה'); else if (r === 'offline') UI.toast('אין חיבור לשרת. נסו שוב כשיש אינטרנט.', 'error'); };
   $('#restore', main).onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     if (!(await UI.confirm('השחזור יחליף את כל הנתונים הקיימים בנתוני הגיבוי. להמשיך?', 'שחזור', true))) return;

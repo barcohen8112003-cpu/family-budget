@@ -242,6 +242,15 @@ public class MainActivity extends Activity {
             }
         }
 
+        @JavascriptInterface
+        public String appVersionName() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
         /** האם המשתמש כבר אישר לאפליקציה להתקין עדכונים. */
         @JavascriptInterface
         public boolean canInstall() {
