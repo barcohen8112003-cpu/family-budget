@@ -132,7 +132,7 @@ const App = {
     const rows = Registry.list.map((b) => `<div class="item">
         <button class="btn grow" style="justify-content:flex-start;min-height:56px;text-align:start;white-space:normal;min-width:0;padding:8px 12px" data-open="${b.id}">
           ${UI.icon('wallet')}<span class="stack" style="gap:0;align-items:flex-start"><span class="label">${U.esc(b.name)}</span>
-          <span class="caption">${b.type === 'trip' ? `טיול · ${b.currency}` : 'משפחה'} · ${b.share ? (b.share.role === 'viewer' ? 'לצפייה בלבד · ' : 'משותף · ') : ''}${b.id === Registry.last ? 'נפתח לאחרונה · ' : ''}נוצר ב-<span class="num">${U.il(b.created)}</span></span></span></button>
+          <span class="caption">${b.type === 'trip' ? `טיול · ${b.currency}` : 'משפחה'} · ${b.share ? ({ viewer: 'לצפייה בלבד · ', editor: 'משותף לעריכה · ', owner: 'משותף · ' }[b.share.role] || '') : ''}${b.id === Registry.last ? 'נפתח לאחרונה · ' : ''}נוצר ב-<span class="num">${U.il(b.created)}</span></span></span></button>
         <button class="btn sm ghost icon" data-rename="${b.id}" aria-label="שינוי השם של ${U.esc(b.name)}">${UI.icon('pencil')}</button>
         <button class="btn sm ghost icon" data-remove="${b.id}" aria-label="מחיקת ${U.esc(b.name)}">${UI.icon('trash-2')}</button></div>`).join('');
     el.innerHTML = `<div class="card picker">
@@ -194,7 +194,10 @@ const App = {
     try { await Store.load(b.db, App.kind); } catch (e) { return UI.error(e); } finally { Share.syncing = false; }
     Registry.last = id; await Registry.save();
     if (App.readOnly) { await Share.pull(b, got); App.kind = b.type || App.kind; App.home = App.kind === 'trip' ? 'trip' : 'dashboard'; U.cur = b.currency || U.cur; }
-    else if (b.share && b.share.pending) Share.publish();
+    else if (Share.canWrite(b)) {
+      if (got) await Share.pull(b, got);
+      Share.sync(b).then((changed) => { if (changed && Registry.last === b.id) Share.refreshScreen(); });
+    }
     // איפוס מצב המסכים, כדי שסינון או ייבוא מתקציב אחר לא יישארו פתוחים
     Tx.f = null; Tx.advanced = false; Imp.queue = []; Imp.cur = null; Imp.step = 'upload'; Imp.done = [];
     if (S.settings.pinHash) App.lock(); else App.unlock();
@@ -243,7 +246,7 @@ const App = {
     try {
       const view = Views[App.route];
       if (view) view(main, App.params); else main.innerHTML = `<div class="page-head"><h1>בקרוב</h1></div>`;
-      if (App.readOnly) {
+      if (Registry.current() && Registry.current().share) {
         main.insertAdjacentHTML('afterbegin', Share.banner());
         const rf = $('[data-ro-refresh]', main);
         if (rf) rf.onclick = async () => { rf.disabled = true; const ok = await Share.pull(Registry.current()); UI.toast(ok ? 'התקציב עודכן' : 'לא ניתן לעדכן עכשיו'); App.render(); };

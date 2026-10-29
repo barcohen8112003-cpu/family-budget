@@ -135,7 +135,7 @@ Views.trip = (main) => {
   main.innerHTML = `
     <div class="page-head"><h1>${U.esc(Registry.current().name)}</h1>
       <button class="btn" data-fx>${UI.icon('arrow-left-right')}המרת מטבע</button>
-      <button class="btn ro-hide" data-share>${UI.icon('share-2')}${Share.isOwner() ? 'משותף' : 'שיתוף'}</button>
+      <button class="btn ro-hide" data-share>${UI.icon('share-2')}${Share.role() ? 'משותף' : 'שיתוף'}</button>
       <button class="btn primary" data-add style="min-height:52px;font-size:16px">${UI.icon('plus')}הוצאה חדשה</button></div>
     <div class="card">
       ${totalBudget ? `<div class="row between"><span class="label">התקציב לכל הטיול</span><span class="label ${lvl}">${UI.icon(Budget.icon[lvl])} ${Budget.word[lvl]} · <span class="num">${pct}%</span></span></div>

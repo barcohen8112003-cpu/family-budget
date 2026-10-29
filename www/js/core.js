@@ -158,14 +158,15 @@ const BANKS = [
 const S = {
   tx: [],
   categories: [], rules: {}, mappings: {}, budgets: {}, goals: [], filters: [], sources: [],
+  deleted: {}, stamps: {}, // לסנכרון: מחיקות (מזהה → זמן) וזמן השינוי האחרון של כל רשימה
   settings: { theme: 'auto', pinHash: null, members: ['משותף'] },
 };
-const KV_KEYS = ['categories', 'rules', 'mappings', 'budgets', 'goals', 'filters', 'sources', 'settings'];
+const KV_KEYS = ['categories', 'rules', 'mappings', 'budgets', 'goals', 'filters', 'sources', 'settings', 'deleted', 'stamps'];
 
 const Store = {
   // מצב נקי לפני טעינת תקציב, כדי ששום דבר לא יזלוג מתקציב שנפתח קודם
   reset() {
-    Object.assign(S, { tx: [], categories: [], rules: {}, mappings: {}, budgets: {}, goals: [], filters: [], sources: [],
+    Object.assign(S, { tx: [], categories: [], rules: {}, mappings: {}, budgets: {}, goals: [], filters: [], sources: [], deleted: {}, stamps: {},
       settings: { theme: 'auto', pinHash: null, members: ['משותף'] } });
   },
   async load(dbName, kind = 'family') {
@@ -183,10 +184,19 @@ const Store = {
   // תקציב שהתקבל לצפייה אינו ניתן לשינוי; רק הסנכרון מהבעלים כותב אליו
   guard() { if (typeof App !== 'undefined' && App.readOnly && !(typeof Share !== 'undefined' && Share.syncing)) throw new Error('זה תקציב לצפייה בלבד.'); },
   touched() { if (typeof Share !== 'undefined') Share.changed(); },
-  async save(key) { Store.guard(); await DB.put('kv', { key, value: S[key] }); if (key !== 'settings') Store.touched(); },
+  syncing: () => typeof Share !== 'undefined' && Share.syncing,
+  async save(key) {
+    Store.guard();
+    const local = !Store.syncing();
+    // שינוי מקומי ברשימה משותפת: רושמים מתי, כדי שבמיזוג השינוי החדש יותר יגבר
+    if (local && ['categories', 'budgets', 'goals', 'sources', 'settings'].includes(key)) { S.stamps[key] = Date.now(); await DB.put('kv', { key: 'stamps', value: S.stamps }); }
+    await DB.put('kv', { key, value: S[key] });
+    if (local && !['deleted', 'stamps', 'rules', 'mappings', 'filters'].includes(key)) Store.touched();
+  },
   async putTx(list) {
     Store.guard();
     list = Array.isArray(list) ? list : [list];
+    if (!Store.syncing()) { const now = Date.now(); list.forEach((t) => { t.u = now; }); }
     const ids = new Set(list.map((t) => t.id));
     S.tx = S.tx.filter((t) => !ids.has(t.id)).concat(list);
     await DB.put('tx', list);
@@ -197,6 +207,7 @@ const Store = {
   async delTx(ids) {
     Store.guard();
     ids = Array.isArray(ids) ? ids : [ids];
+    if (!Store.syncing()) { const now = Date.now(); ids.forEach((id) => { S.deleted[id] = now; }); await DB.put('kv', { key: 'deleted', value: S.deleted }); }
     const set = new Set(ids);
     S.tx = S.tx.filter((t) => !set.has(t.id));
     await DB.del('tx', ids);

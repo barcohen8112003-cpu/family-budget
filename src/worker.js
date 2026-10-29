@@ -11,7 +11,7 @@ const APP_CERT = 'C6:2F:1C:98:AC:1B:61:28:BA:1A:EC:CF:10:47:52:D3:EA:A0:03:2B:69
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-None-Match',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-None-Match, If-Match',
   'Access-Control-Max-Age': '86400',
 };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS } });
@@ -46,6 +46,12 @@ export class ShareStore extends DurableObject {
       let body;
       try { body = JSON.parse(text); } catch { return json({ error: 'bad-json' }, 400); }
       if (typeof body.data !== 'string') return json({ error: 'bad-body' }, 400);
+      // מי שמעלה מצהיר על איזו גרסה הוא בנה; אם בינתיים מישהו אחר העלה, הוא צריך למזג קודם
+      const ifMatch = request.headers.get('If-Match');
+      if (ifMatch) {
+        const cur = await storage.get('share');
+        if (!cur || ifMatch !== `"${cur.updated}"`) return json({ error: 'conflict' }, 412);
+      }
       const share = { data: body.data, updated: new Date().toISOString() };
       if (!owner) await storage.put('owner', hash);
       await storage.put('share', share);
