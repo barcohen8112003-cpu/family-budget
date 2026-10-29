@@ -14,8 +14,7 @@ const AppUpd = {
     if (!Platform.android()) return 'latest';
     if (AppUpd.old()) { AppUpd.info = null; AppUpd.bar(); return 'update'; }
     try {
-      const endpoint = (typeof Admin !== 'undefined' && Admin.isActive()) ? `${Share.SITE}/api/app-admin` : `${Share.SITE}/api/app`;
-      const r = await fetch(endpoint, { cache: 'no-store' });
+      const r = await fetch(`${Share.SITE}/api/app`, { cache: 'no-store' });
       if (!r.ok) return 'offline';
       AppUpd.info = await r.json();
       if (!AppUpd.bridge() || AppUpd.info.versionCode > AppUpd.local()) { AppUpd.bar(); return 'update'; }

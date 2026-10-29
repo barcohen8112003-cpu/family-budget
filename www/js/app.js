@@ -96,16 +96,11 @@ const App = {
   // תפריט לפי סוג התקציב: טיול מקבל תפריט מצומצם
   readOnly: false,
   nav() {
-    let items;
-    if (App.readOnly) items = App.kind === 'trip' ? [['trip', 'הטיול', 'plane'], ['transactions', 'הוצאות', 'list']]
+    if (App.readOnly) return App.kind === 'trip' ? [['trip', 'הטיול', 'plane'], ['transactions', 'הוצאות', 'list']]
       : [['dashboard', 'לוח בקרה', 'layout-dashboard'], ['transactions', 'עסקאות', 'list'], ['budget', 'תקציב ויעדים', 'target']];
-    else items = App.kind === 'trip'
+    return App.kind === 'trip'
       ? [['trip', 'הטיול', 'plane'], ['transactions', 'הוצאות', 'list'], ['settings', 'הגדרות', 'settings']]
-      : [...App.NAV];
-    if (typeof Admin !== 'undefined' && Admin.isActive()) {
-      items.unshift(['admin', 'לוח אדמין', 'shield']);
-    }
-    return items;
+      : App.NAV;
   },
   NAV: [
     ['dashboard', 'לוח בקרה', 'layout-dashboard'], ['transactions', 'עסקאות', 'list'], ['import', 'ייבוא', 'upload'],
@@ -117,15 +112,7 @@ const App = {
     catch (e) { document.body.innerHTML = `<div class="lock"><div class="card"><h2>לא ניתן לטעון את הנתונים</h2><p class="muted">${U.esc(e.message)}</p></div></div>`; return; }
     App.applyTheme();
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', App.applyTheme);
-    if (typeof AdminSync !== 'undefined') AdminSync.init();
-    if (typeof Admin !== 'undefined' && Admin.isActive()) {
-      App.home = 'admin';
-      $('#lock').hidden = true;
-      $('#app').hidden = false;
-      App.go('admin');
-    } else {
-      App.picker();
-    }
+    App.picker();
     Share.incoming();
     Share.live();
     AppUpd.check();
@@ -143,9 +130,6 @@ const App = {
   picker() {
     App.route = 'picker';
     $('#app').hidden = true; const el = $('#lock'); el.hidden = false;
-    const adminBanner = (typeof Admin !== 'undefined' && Admin.isActive())
-      ? `<div style="margin-bottom:16px"><button class="btn primary" style="width:100%;min-height:48px;font-size:1.05rem" data-go-admin>${UI.icon('shield')} מעבר למרכז השליטה של האדמין</button></div>`
-      : '';
     const rows = Registry.list.map((b) => `<div class="item">
         <button class="btn grow" style="justify-content:flex-start;min-height:56px;text-align:start;white-space:normal;min-width:0;padding:8px 12px" data-open="${b.id}">
           ${UI.icon('wallet')}<span class="stack" style="gap:0;align-items:flex-start"><span class="label">${U.esc(b.name)}</span>
@@ -153,7 +137,6 @@ const App = {
         <button class="btn sm ghost icon" data-rename="${b.id}" aria-label="שינוי השם של ${U.esc(b.name)}">${UI.icon('pencil')}</button>
         <button class="btn sm ghost icon" data-remove="${b.id}" aria-label="מחיקת ${U.esc(b.name)}">${UI.icon('trash-2')}</button></div>`).join('');
     el.innerHTML = `<div class="card picker">
-      ${adminBanner}
       <h2>איזה תקציב לנהל?</h2>
       <p class="muted" style="margin-bottom:16px">לכל תקציב עסקאות, קטגוריות ויעדים משלו.</p>
       ${rows ? `<div class="list">${rows}</div>` : '<p class="muted">אין עדיין תקציבים. צרו את הראשון.</p>'}
@@ -177,14 +160,6 @@ const App = {
       $('#new-cur-wrap', el).hidden = newType !== 'trip';
       $('#new-name', el).placeholder = newType === 'trip' ? 'שם, למשל: טיול לארה"ב' : 'שם, למשל: הבית שלנו';
     }));
-    const goAdminBtn = $('[data-go-admin]', el);
-    if (goAdminBtn) {
-      goAdminBtn.onclick = () => {
-        $('#lock').hidden = true;
-        $('#app').hidden = false;
-        App.go('admin');
-      };
-    }
     $$('[data-open]', el).forEach((b) => (b.onclick = () => App.openBudget(b.dataset.open)));
     $('#new-budget', el).onsubmit = async (e) => {
       e.preventDefault(); const name = $('#new-name', el).value.trim();
@@ -251,11 +226,6 @@ const App = {
   // כפתור החזרה באנדרואיד: סגירת חלון קופץ, ביטול ייבוא, חזרה ללוח הבקרה, ואז יציאה
   onBack() {
     const m = $('.modal-back'); if (m) { m.remove(); return true; }
-    if (typeof Admin !== 'undefined' && Admin.viewingBudget) {
-      Admin.exitViewingBudget();
-      return true;
-    }
-    if (App.route === 'admin') return false;
     if (App.route === 'picker') return false;
     if (App.route === 'lock') { App.picker(); return true; }
     if (App.route === 'import' && Imp.cur) { Imp.cancel(); return true; }
@@ -265,8 +235,7 @@ const App = {
   go(route, params = null) { App.route = route; App.params = params; App.render(); window.scrollTo(0, 0); },
   render() {
     const dark = document.documentElement.dataset.theme === 'dark';
-    const brandName = Registry.current() ? Registry.current().name : (typeof Admin !== 'undefined' && Admin.isActive() ? 'תקציב אדמין' : 'תקציב משפחתי');
-    $('#nav').innerHTML = `<div class="brand">${U.esc(brandName)}</div>
+    $('#nav').innerHTML = `<div class="brand">${U.esc(Registry.current().name)}</div>
       ${App.nav().map(([id, label, icon]) => `<button data-route="${id}" ${App.route === id ? 'aria-current="page"' : ''}>${UI.icon(icon)}<span>${label}</span></button>`).join('')}
       <button data-switch-budget>${UI.icon('arrow-left-right')}<span>תקציבים</span></button>
       <div class="spacer"></div>
@@ -278,11 +247,7 @@ const App = {
     try {
       const view = Views[App.route];
       if (view) view(main, App.params); else main.innerHTML = `<div class="page-head"><h1>בקרוב</h1></div>`;
-      if (typeof Admin !== 'undefined' && Admin.viewingBudget) {
-        main.insertAdjacentHTML('afterbegin', Admin.banner());
-        const exitBtn = $('[data-admin-exit]', main);
-        if (exitBtn) exitBtn.onclick = () => Admin.exitViewingBudget();
-      } else if (Registry.current() && Registry.current().share) {
+      if (Registry.current() && Registry.current().share) {
         main.insertAdjacentHTML('afterbegin', Share.banner());
         const rf = $('[data-ro-refresh]', main);
         if (rf) rf.onclick = async () => { rf.disabled = true; const ok = await Share.pull(Registry.current()); UI.toast(ok ? 'התקציב עודכן' : 'לא ניתן לעדכן עכשיו'); App.render(); };

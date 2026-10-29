@@ -8,24 +8,11 @@ android {
     buildToolsVersion '36.0.0'
 
     defaultConfig {
+        applicationId 'il.family.budget'
         minSdk 26
         targetSdk 34
         versionCode 9
         versionName '1.6'
-    }
-
-    flavorDimensions = ['role']
-    productFlavors {
-        regular {
-            dimension 'role'
-            applicationId 'il.family.budget'
-            manifestPlaceholders = [appName: "תקציב משפחתי"]
-        }
-        admin {
-            dimension 'role'
-            applicationId 'il.family.budget.admin'
-            manifestPlaceholders = [appName: "תקציב אדמין"]
-        }
     }
 
     // קובצי האפליקציה (HTML/JS) נלקחים ישירות מתיקיית www

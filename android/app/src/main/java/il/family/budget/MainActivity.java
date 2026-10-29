@@ -233,11 +233,6 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public boolean isAdmin() {
-            return getPackageName().endsWith(".admin");
-        }
-
-        @JavascriptInterface
         @SuppressWarnings("deprecation")
         public int appVersionCode() {
             try {
