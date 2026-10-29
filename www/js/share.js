@@ -180,7 +180,12 @@ const Share = {
   LIVE_MS: 8000, liveTimer: null, liveBusy: false,
   live() {
     clearInterval(Share.liveTimer);
-    Share.liveTimer = setInterval(async () => {
+    Share.liveTimer = setInterval(Share.tick, Share.LIVE_MS);
+    // כשחוזרים לאפליקציה בודקים מיד, בלי לחכות לסבב הבא
+    if (!Share.liveBound) { Share.liveBound = true; document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') Share.tick(); }); }
+  },
+  async tick() {
+    {
       const b = Registry.current();
       if (!App.readOnly || !b || !b.share || b.share.gone || Share.liveBusy || document.visibilityState !== 'visible') return;
       Share.liveBusy = true;
@@ -192,7 +197,7 @@ const Share = {
         if (!$('.modal-back')) { const y = window.scrollY; App.render(); window.scrollTo(0, y); }
         UI.toast('התקציב עודכן');
       } catch (e) { /* בלי רשת: מנסים שוב בפעם הבאה */ } finally { Share.liveBusy = false; }
-    }, Share.LIVE_MS);
+    }
   },
   // קישור שהגיע מבחוץ (נפתח באפליקציה או בדפדפן)
   incoming() {
