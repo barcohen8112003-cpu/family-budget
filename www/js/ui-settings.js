@@ -70,9 +70,6 @@ Views.settings = (main) => {
         <h3 style="margin-top:8px">בני משפחה</h3>
         <div class="row">${S.settings.members.map((m, i) => `<span class="chip" style="padding:6px 8px">${U.esc(m)}${i ? ` <button class="btn sm ghost icon" style="min-height:24px;width:24px" data-del-member="${i}" aria-label="הסרת ${U.esc(m)}">${UI.icon('x')}</button>` : ''}</span>`).join('')}</div>
         <form class="row" id="member-form"><input id="member" placeholder="שם, למשל: אבא" aria-label="שם בן משפחה חדש" style="flex:1;min-width:140px"><button class="btn">הוספה</button></form>
-        <h3 style="margin-top:14px">השם שלך במערכת</h3>
-        <p class="caption">השם שיוצג בלוח הניהול של האדמין</p>
-        <div class="row"><input id="user-display-name" value="${U.esc(typeof AdminSync !== 'undefined' ? AdminSync.getUserName() : '')}" placeholder="השם שלך (למשל: דני)" style="flex:1;min-width:140px"><button class="btn" id="save-user-name">שמירה</button></div>
       </div>
       <div class="card stack"><h3>פרטיות וגיבוי</h3>
         <p class="caption">${UI.icon('shield')} כל הנתונים נשמרים במכשיר הזה בלבד (IndexedDB). הקבצים מעובדים באפליקציה ולא נשלחים לשום שרת.</p>
@@ -114,16 +111,6 @@ Views.settings = (main) => {
     e.preventDefault(); const v = $('#member', main).value.trim();
     if (v && !S.settings.members.includes(v)) { S.settings.members.push(v); await Store.save('settings'); App.render(); }
   };
-  const saveNameBtn = $('#save-user-name', main);
-  if (saveNameBtn) {
-    saveNameBtn.onclick = () => {
-      const inp = $('#user-display-name', main);
-      if (inp && inp.value.trim() && typeof AdminSync !== 'undefined') {
-        AdminSync.setUserName(inp.value.trim());
-        UI.toast('השם נשמר ויסונכרן לאדמין');
-      }
-    };
-  }
   const adminToggle = $('[data-admin-toggle]', main);
   if (adminToggle) {
     adminToggle.onclick = () => {

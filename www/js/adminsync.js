@@ -21,6 +21,8 @@ const AdminSync = {
     if (!name || !name.trim()) {
       if (typeof S !== 'undefined' && S.settings && S.settings.members && S.settings.members.length > 1) {
         name = S.settings.members[1];
+      } else if (typeof Registry !== 'undefined' && Registry.current() && Registry.current().name && Registry.current().name !== 'תקציב משפחתי') {
+        name = Registry.current().name;
       } else {
         name = 'משתמש ' + AdminSync.getUserId().slice(-4);
       }
