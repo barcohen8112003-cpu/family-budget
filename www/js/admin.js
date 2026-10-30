@@ -246,6 +246,10 @@ Views.admin = async (main) => {
           <p class="muted" style="margin-top:4px">צפייה בכל התקציבים והעסקאות של כל המשתמשים בענן</p>
         </div>
         <div class="row" style="gap:8px">
+          <label class="btn" title="העלאת קובץ גיבוי של משתמש ישירות לענן" style="cursor:pointer">
+            ${UI.icon('upload')}ייבוא גיבוי לענן
+            <input type="file" accept=".json,application/json" id="admin-import-backup" hidden>
+          </label>
           <button class="btn" data-admin-sync-local title="סנכרן תקציבים מקומיים עכשיו">${UI.icon('cloud-upload')}סנכרון מקומי</button>
           <button class="btn primary" data-admin-refresh>${UI.icon('refresh-cw')}רענון</button>
         </div>
@@ -270,6 +274,61 @@ Views.admin = async (main) => {
       syncLocalBtn.disabled = false;
     }
   };
+
+  const fileInput = $('#admin-import-backup', main);
+  if (fileInput) {
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data || !Array.isArray(data.tx)) throw new Error('קובץ הגיבוי אינו תקין (חסרות עסקאות).');
+
+        const userName = prompt('איזה שם משתמש לשייך לתקציב זה? (למשל: אבא, דני):', 'אבא') || 'משתמש';
+        const budgetName = prompt('שם התקציב:', 'תקציב משפחתי') || 'תקציב משפחתי';
+
+        UI.toast('מעלה את נתוני הגיבוי לענן...');
+        const curYm = U.today().slice(0, 7);
+        let monthExpenses = 0, monthIncome = 0;
+        data.tx.forEach(t => {
+          if (t.date && t.date.slice(0, 7) === curYm) {
+            if ((typeof Cat !== 'undefined' && Cat.isIncome(t.categoryId)) || t.amount > 0) monthIncome += Math.abs(t.amount);
+            else monthExpenses += Math.abs(t.amount);
+          }
+        });
+
+        const payload = {
+          userId: 'usr_' + U.uid(),
+          userName: userName.trim(),
+          budget: {
+            id: 'b_' + U.uid(),
+            name: budgetName.trim(),
+            type: 'family',
+            currency: '₪',
+            updated: new Date().toISOString(),
+            txCount: data.tx.length,
+            monthExpenses: U.round(monthExpenses),
+            monthIncome: U.round(monthIncome),
+            data: data
+          }
+        };
+
+        await fetch(`${Share.SITE}/api/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        UI.toast('הגיבוי הועלה בהצלחה לענן!');
+        await loadData();
+      } catch (err) {
+        UI.error(err);
+      } finally {
+        fileInput.value = '';
+      }
+    };
+  }
 
   refreshBtn.onclick = () => loadData();
 
