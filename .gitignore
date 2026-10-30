@@ -2,6 +2,8 @@
 הקבצים שלי/
 *.apk
 !www/apk/family-budget.apk
+!www/apk/family-budget-admin.apk
+.wrangler/
 android/.gradle/
 android/build/
 android/app/build/
