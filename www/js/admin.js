@@ -78,12 +78,11 @@ const Admin = {
       const full = await Admin.fetchBudget(budgetId);
       if (!full || !full.data) throw new Error('נתוני התקציב אינם זמינים.');
 
-      // מכינים מאגר זמני ייעודי להצגת תקציב המשתמש
+      // מאגר ייעודי לצפייה בתקציב המשתמש
       const dbName = `family-budget-admin-view-${budgetId}`;
       const type = full.type || 'family';
       const currency = full.currency || '₪';
 
-      // כותבים את הנתונים למאגר כדי ש-Store יוכל לטעון אותם
       await new Promise((resolve, reject) => {
         const req = indexedDB.open(dbName, 1);
         req.onupgradeneeded = () => {
@@ -118,7 +117,6 @@ const Admin = {
         req.onerror = () => reject(req.error);
       });
 
-      // מעדכנים את מצב האפליקציה לצפייה
       Admin.viewingBudget = {
         budgetId,
         userName,
@@ -126,7 +124,7 @@ const Admin = {
         previousLast: Registry.last
       };
 
-      App.readOnly = false; // האדמין יכול גם לתקן ולערוך אם ירצה
+      App.readOnly = false;
       App.kind = type;
       App.home = type === 'trip' ? 'trip' : 'dashboard';
       U.cur = currency;
@@ -234,20 +232,26 @@ const Admin = {
 
 // מסך הניהול הראשי
 Views.admin = async (main) => {
+  // איפוס טיימר קיים
+  if (Admin.autoRefreshTimer) {
+    clearInterval(Admin.autoRefreshTimer);
+    Admin.autoRefreshTimer = null;
+  }
+
   main.innerHTML = `
     <div class="page-head" style="margin-bottom:20px">
       <div class="row between" style="align-items:center">
         <div>
           <h1 style="display:flex;align-items:center;gap:10px">${UI.icon('shield')} מרכז שליטה לאדמין</h1>
-          <p class="muted" style="margin-top:4px">צפייה בכל התקציבים והעסקאות של כל המשתמשים</p>
+          <p class="muted" style="margin-top:4px">צפייה בכל התקציבים והעסקאות של כל המשתמשים בענן</p>
         </div>
         <div class="row" style="gap:8px">
-          <button class="btn" data-admin-sync-local title="סנכרן תקציבים מקומיים לענן">${UI.icon('cloud-upload')}סנכרון מקומי</button>
+          <button class="btn" data-admin-sync-local title="סנכרן תקציבים מקומיים עכשיו">${UI.icon('cloud-upload')}סנכרון מקומי</button>
           <button class="btn primary" data-admin-refresh>${UI.icon('refresh-cw')}רענון</button>
         </div>
       </div>
     </div>
-    <div id="admin-content"><div class="card empty">${UI.icon('refresh-cw')}<p>טוען את נתוני המשתמשים מהשרת...</p></div></div>
+    <div id="admin-content"><div class="card empty">${UI.icon('refresh-cw')}<p>טוען נתונים מהענן...</p></div></div>
   `;
 
   const refreshBtn = $('[data-admin-refresh]', main);
@@ -269,16 +273,22 @@ Views.admin = async (main) => {
 
   refreshBtn.onclick = () => loadData();
 
-  async function loadData() {
+  async function loadData(silent = false) {
     const container = $('#admin-content', main);
     if (!container) return;
-    refreshBtn.disabled = true;
+    if (!silent) refreshBtn.disabled = true;
 
     try {
       const data = await Admin.fetchOverview();
       const summary = data.summary || { totalUsers: 0, totalBudgets: 0, totalTx: 0, totalMonthExpenses: 0, totalMonthIncome: 0 };
       const users = data.users || [];
       const allBudgets = data.allBudgets || [];
+
+      // חישוב הוצאות לכל משתמש
+      const userExpenses = users.map(u => {
+        const exp = (u.budgets || []).reduce((acc, b) => acc + (Number(b.month_expenses) || 0), 0);
+        return { name: u.userName || 'משתמש', expenses: exp, id: u.userId };
+      }).sort((a, b) => b.expenses - a.expenses);
 
       // סינון לפי טקסט וסוג
       const q = Admin.filterText.toLowerCase().trim();
@@ -293,13 +303,13 @@ Views.admin = async (main) => {
 
       container.innerHTML = `
         <!-- כרטיסי סיכום ראשיים -->
-        <div class="grid c4" style="gap:16px;margin-bottom:24px">
+        <div class="grid c4" style="gap:16px;margin-bottom:20px">
           <div class="card" style="padding:16px;background:linear-gradient(135deg, rgba(15,92,87,0.08), rgba(15,92,87,0.02));border-right:4px solid var(--brand, #0f5c57)">
             <div class="caption" style="display:flex;align-items:center;gap:6px">${UI.icon('users')} משתמשים במערכת</div>
             <div class="num" style="font-size:1.8rem;font-weight:700;margin-top:6px">${summary.totalUsers}</div>
           </div>
           <div class="card" style="padding:16px;background:linear-gradient(135deg, rgba(26,106,168,0.08), rgba(26,106,168,0.02));border-right:4px solid #1a6aa8">
-            <div class="caption" style="display:flex;align-items:center;gap:6px">${UI.icon('wallet')} תקציבים פעילים</div>
+            <div class="caption" style="display:flex;align-items:center;gap:6px">${UI.icon('wallet')} תקציבים בענן</div>
             <div class="num" style="font-size:1.8rem;font-weight:700;margin-top:6px">${summary.totalBudgets}</div>
           </div>
           <div class="card" style="padding:16px;background:linear-gradient(135deg, rgba(107,91,149,0.08), rgba(107,91,149,0.02));border-right:4px solid #6b5b95">
@@ -312,10 +322,36 @@ Views.admin = async (main) => {
           </div>
         </div>
 
+        <!-- התפלגות הוצאות לפי משתמשים -->
+        ${userExpenses.length > 0 && summary.totalMonthExpenses > 0 ? `
+          <div class="card" style="margin-bottom:20px;padding:16px">
+            <div class="row between" style="margin-bottom:12px">
+              <strong style="display:flex;align-items:center;gap:8px">${UI.icon('pie-chart')} התפלגות הוצאות החודש לפי משתמש</strong>
+              <span class="caption">סה״כ: ${U.nf.format(summary.totalMonthExpenses)} ₪</span>
+            </div>
+            <div class="stack" style="gap:10px">
+              ${userExpenses.map(ux => {
+                const pct = summary.totalMonthExpenses > 0 ? Math.round((ux.expenses / summary.totalMonthExpenses) * 100) : 0;
+                return `
+                  <div>
+                    <div class="row between" style="font-size:0.95rem;margin-bottom:4px">
+                      <span><strong>${U.esc(ux.name)}</strong></span>
+                      <span>${U.nf.format(ux.expenses)} ₪ (${pct}%)</span>
+                    </div>
+                    <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+                      <div style="height:100%;width:${pct}%;background:var(--brand, #0f5c57);border-radius:4px;transition:width 0.3s"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
         <!-- סרגל חיפוש וסינון -->
         <div class="card row between" style="padding:12px 16px;margin-bottom:20px;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:220px;position:relative">
-            <input id="admin-search" placeholder="חיפוש לפי שם משתמש או תקציב..." value="${U.esc(Admin.filterText)}" style="width:100%;padding-right:32px">
+            <input id="admin-search" placeholder="חיפוש משתמש או תקציב..." value="${U.esc(Admin.filterText)}" style="width:100%;padding-right:32px">
             <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);opacity:0.5">${UI.icon('search')}</span>
           </div>
           <div class="seg" role="group" aria-label="סינון סוג תקציב">
@@ -338,7 +374,7 @@ Views.admin = async (main) => {
                     </span>
                     <div>
                       <div style="font-weight:700;font-size:1.1rem">${U.esc(u.userName || 'משתמש')}</div>
-                      <div class="caption">מזהה: <span class="num">${U.esc(u.userId)}</span> · עודכן לאחרונה: <span class="num">${new Date(u.lastActive || Date.now()).toLocaleString('he-IL')}</span></div>
+                      <div class="caption">מזהה: <span class="num">${U.esc(u.userId)}</span> · סנכרון אחרון: <span class="num">${new Date(u.lastActive || Date.now()).toLocaleString('he-IL')}</span></div>
                     </div>
                   </div>
                   <span class="chip" style="font-weight:600">${u.budgets.length} תקציבים</span>
@@ -375,9 +411,9 @@ Views.admin = async (main) => {
         ` : `
           <div class="card empty" style="padding:48px 24px;text-align:center">
             ${UI.icon('folder-search')}
-            <h3 style="margin-top:12px">לא נמצאו תקציבים תואמים</h3>
+            <h3 style="margin-top:12px">לא נמצאו תקציבים</h3>
             <p class="muted" style="margin-top:6px;max-width:500px;margin-inline:auto">
-              ${q ? 'לא נמצאו משתמשים או תקציבים התואמים לחיפוש.' : 'עדיין לא סונכרנו תקציבים מהמכשירים. ברגע שמשתמש יפתח את האפליקציה או יבצע פעולה, התקציב שלו יופיע כאן אוטומטית!'}
+              ${q ? 'לא נמצאו משתמשים או תקציבים התואמים לחיפוש.' : 'כל תקציב שנוצר או מתעדכן באפליקציות של המשתמשים מסונכרן כעת אוטומטית לענן ויופיע כאן!'}
             </p>
           </div>
         `}
@@ -388,7 +424,7 @@ Views.admin = async (main) => {
       if (searchInp) {
         searchInp.oninput = (e) => {
           Admin.filterText = e.target.value;
-          loadData();
+          loadData(true);
         };
       }
 
@@ -420,7 +456,7 @@ Views.admin = async (main) => {
       container.innerHTML = `
         <div class="card empty" style="padding:36px;color:var(--danger)">
           ${UI.icon('alert-triangle')}
-          <h3>שגיאה בטעינת נתוני האדמין</h3>
+          <h3>שגיאה בטעינת נתוני האדמין מהענן</h3>
           <p class="muted" style="margin-top:6px">${U.esc(err.message || err)}</p>
           <button class="btn primary" style="margin-top:16px" data-retry>${UI.icon('refresh-cw')}ניסיון חוזר</button>
         </div>
@@ -433,6 +469,12 @@ Views.admin = async (main) => {
     }
   }
 
+  // רענון אוטומטי חי כל 12 שניות בעמוד האדמין
+  Admin.autoRefreshTimer = setInterval(() => {
+    if (App.route === 'admin' && !Admin.viewingBudget && document.visibilityState === 'visible') {
+      loadData(true);
+    }
+  }, 12000);
+
   await loadData();
 };
-

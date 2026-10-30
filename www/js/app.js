@@ -226,6 +226,7 @@ const App = {
     }
     // איפוס מצב המסכים, כדי שסינון או ייבוא מתקציב אחר לא יישארו פתוחים
     Tx.f = null; Tx.advanced = false; Imp.queue = []; Imp.cur = null; Imp.step = 'upload'; Imp.done = [];
+    if (typeof AdminSync !== 'undefined') AdminSync.schedule(300);
     if (S.settings.pinHash) App.lock(); else App.unlock();
   },
   pinHash: (pin) => U.sha(`family-budget:${pin}`),

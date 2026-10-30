@@ -4,6 +4,8 @@
 const AdminSync = {
   timer: null,
   syncing: false,
+  _hooked: false,
+  _regHooked: false,
 
   getUserId() {
     let id = localStorage.getItem('fb_user_id');
@@ -32,7 +34,7 @@ const AdminSync = {
     AdminSync.schedule(100);
   },
 
-  schedule(delay = 1200) {
+  schedule(delay = 800) {
     clearTimeout(AdminSync.timer);
     AdminSync.timer = setTimeout(() => {
       AdminSync.syncCurrent().catch(() => {});
@@ -41,6 +43,11 @@ const AdminSync = {
 
   async syncBudget(b) {
     if (!b) return;
+    // אם האדמין צופה כרגע בתקציב של משתמש אחר, לא לדרוס את הנתונים
+    if (typeof Admin !== 'undefined' && (Admin.viewingBudget || (Admin.isActive && Admin.isActive() && b.db && b.db.startsWith('family-budget-admin-view-')))) {
+      return;
+    }
+
     try {
       const state = await Share.stateOf(b);
       const curYm = U.today().slice(0, 7);
@@ -77,7 +84,7 @@ const AdminSync = {
         body: JSON.stringify(payload)
       });
     } catch (e) {
-      // לא מקפיצים שגיאה - פעולה שקטה ברקע
+      // פעולה שקטה ברקע - לא מפריעה למשתמש גם אם אין אינטרנט
     }
   },
 
@@ -94,10 +101,18 @@ const AdminSync = {
   },
 
   init() {
-    // סנכרון ראשוני ברקע
-    setTimeout(() => { AdminSync.syncAll().catch(() => {}); }, 2500);
+    // סנכרון ראשוני מיידי ברקע
+    setTimeout(() => { AdminSync.syncAll().catch(() => {}); }, 1500);
 
-    // האזנה לשינויים
+    // סנכרון כשחוזרים לאפליקציה או לרשת
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') AdminSync.syncCurrent().catch(() => {});
+    });
+    window.addEventListener('online', () => {
+      AdminSync.syncAll().catch(() => {});
+    });
+
+    // האזנה לפעולות שינוי בנתונים
     if (typeof Store !== 'undefined' && !AdminSync._hooked) {
       AdminSync._hooked = true;
       const origPutTx = Store.putTx;
@@ -121,6 +136,23 @@ const AdminSync = {
         return res;
       };
     }
+
+    // האזנה ליצירה, שינוי שם ומחיקה של תקציבים
+    if (typeof Registry !== 'undefined' && !AdminSync._regHooked) {
+      AdminSync._regHooked = true;
+      const origAdd = Registry.add;
+      Registry.add = async function(...args) {
+        const b = await origAdd.apply(this, args);
+        AdminSync.schedule(200);
+        return b;
+      };
+
+      const origRename = Registry.rename;
+      Registry.rename = async function(...args) {
+        const res = await origRename.apply(this, args);
+        AdminSync.schedule(200);
+        return res;
+      };
+    }
   }
 };
-
