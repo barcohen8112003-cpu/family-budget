@@ -78,12 +78,6 @@ Views.settings = (main) => {
         <div class="row"><button class="btn" data-backup>${UI.icon('download')}גיבוי לקובץ JSON</button>
           <label class="btn">${UI.icon('upload')}שחזור מגיבוי<input type="file" accept=".json,application/json" id="restore" hidden></label></div>
         <div class="row"><button class="btn danger" data-wipe>${UI.icon('trash-2')}מחק את כל הנתונים</button></div>
-        <div class="row" style="border-top:1px solid var(--border);padding-top:12px;gap:8px">
-          <button class="btn ${typeof Admin !== 'undefined' && Admin.isActive() ? 'brand' : ''}" data-admin-toggle>
-            ${UI.icon('shield')}${typeof Admin !== 'undefined' && Admin.isActive() ? 'מצב אדמין (פעיל)' : 'כניסת אדמין'}
-          </button>
-          ${typeof Admin !== 'undefined' && Admin.isActive() ? '<button class="btn primary sm" data-go-admin-screen>לוח אדמין</button>' : ''}
-        </div>
         <p class="caption">${S.tx.length} עסקאות · ${S.sources.length} מקורות · ${Object.keys(S.mappings).length} מיפויי עמודות שמורים</p>
         ${Platform.android() ? `<div class="row between" style="border-top:1px solid var(--border);padding-top:12px">
           <span class="caption">גרסת האפליקציה: ${AppUpd.bridge() ? U.esc(AppUpd.versionName()) : '1.4 או ישנה יותר'}</span>
@@ -111,61 +105,6 @@ Views.settings = (main) => {
     e.preventDefault(); const v = $('#member', main).value.trim();
     if (v && !S.settings.members.includes(v)) { S.settings.members.push(v); await Store.save('settings'); App.render(); }
   };
-  const adminToggle = $('[data-admin-toggle]', main);
-  if (adminToggle) {
-    adminToggle.onclick = () => {
-      if (typeof Admin === 'undefined') return;
-      if (Admin.isActive()) {
-        UI.modal({
-          title: 'יציאה ממצב אדמין',
-          body: '<p>האם לצאת ממצב אדמין במכשיר זה ולחזור למצב משתמש רגיל?</p>',
-          actions: [
-            {
-              label: 'יציאה ממצב אדמין',
-              cls: 'danger',
-              onClick: (close) => {
-                Admin.setAdminMode(false);
-                close();
-                UI.toast('מצב אדמין בוטל');
-                App.go('dashboard');
-              }
-            },
-            { label: 'ביטול', cls: 'ghost', onClick: (close) => close() }
-          ]
-        });
-      } else {
-        UI.modal({
-          title: 'כניסת אדמין',
-          body: `
-            <div class="stack">
-              <p>הקלידו את קוד האדמין לצפייה בכל תקציבי המשתמשים:</p>
-              <input type="password" id="admin-pass" placeholder="קוד אדמין" autofocus>
-            </div>
-          `,
-          actions: [
-            {
-              label: 'כניסה',
-              cls: 'primary',
-              onClick: (close, el) => {
-                const pass = $('#admin-pass', el).value.trim();
-                if (pass === 'family-admin-2026' || pass === '2026') {
-                  Admin.setAdminMode(true);
-                  close();
-                  UI.toast('ברוך הבא! מצב אדמין פעיל');
-                  App.go('admin');
-                } else {
-                  UI.toast('קוד שגוי. נסו שוב.', 'error');
-                }
-              }
-            },
-            { label: 'ביטול', cls: 'ghost', onClick: (close) => close() }
-          ]
-        });
-      }
-    };
-  }
-  const goAdminScreen = $('[data-go-admin-screen]', main);
-  if (goAdminScreen) goAdminScreen.onclick = () => App.go('admin');
   $$('[data-del-member]', main).forEach((b) => (b.onclick = async () => { S.settings.members.splice(+b.dataset.delMember, 1); await Store.save('settings'); App.render(); }));
   $('[data-pin]', main).onclick = Settings.pinDialog;
   $$('[data-share-b]', main).forEach((b) => (b.onclick = () => Share.dialog(Registry.get(b.dataset.shareB))));
